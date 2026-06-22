@@ -2,6 +2,7 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 #include "XPT2046_Touchscreen.h"
+#include <Preferences.h>
 
 // ==========================
 // DISPLAY PINS - YOUR WORKING SETUP
@@ -41,6 +42,17 @@ XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 #define SCREEN_H 320
 
 // ==========================
+// TOUCH CALIBRATION
+// Adjust MIN/MAX if touches feel offset on your panel.
+// Print raw p.x / p.y values from getTouch() to find your edges.
+// ==========================
+#define TOUCH_CAL_MIN_X   200
+#define TOUCH_CAL_MAX_X  3800
+#define TOUCH_CAL_MIN_Y   200
+#define TOUCH_CAL_MAX_Y  3800
+#define TOUCH_DEBOUNCE_MS 180   // minimum ms between accepted touches
+
+// ==========================
 // SIMPLE COLOURS
 // ==========================
 #define COL_BG       ILI9341_BLACK
@@ -55,9 +67,10 @@ XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 // ==========================
 // DATA LIMITS
 // ==========================
-#define ACCOUNT_COUNT 4
-#define HISTORY_COUNT 6
-#define CHORE_COUNT 4
+#define ACCOUNT_COUNT   4
+#define HISTORY_COUNT   6
+#define CHORE_COUNT     4
+#define DAD_TAX_PERCENT 10  // % deducted from balance when Dad Tax is applied
 
 // ==========================
 // ACCOUNT DATA
@@ -134,6 +147,7 @@ enum Screen {
   ADMIN_ACTION,
   AMOUNT,
   APPROVALS,
+  DAD_TAX,
   MESSAGE
 };
 
@@ -144,6 +158,9 @@ String enteredPin = "";
 String amountInput = "";
 bool adminMode = false;
 bool depositMode = true;
+
+Preferences      prefs;
+unsigned long    lastTouchMs = 0;
 
 // ==========================
 // RGB CONTROL
@@ -182,6 +199,35 @@ void addHistory(int account, String entry) {
   Serial.print(accounts[account].name);
   Serial.print(": ");
   Serial.println(entry);
+}
+
+// ==========================
+// NVS PERSISTENCE
+// Keys are kept short (<= 15 chars) as required by Preferences.
+// Each account uses its index as a suffix: "bal0", "xp1", etc.
+// ==========================
+void saveAccount(int i) {
+  prefs.begin("bank", false);
+  String k = String(i);
+  prefs.putLong(("bal" + k).c_str(), accounts[i].balance);
+  prefs.putLong(("xp"  + k).c_str(), accounts[i].xp);
+  prefs.putBool(("fd"  + k).c_str(), accounts[i].firstDeposit);
+  prefs.putBool(("f10" + k).c_str(), accounts[i].firstTen);
+  prefs.putBool(("f25" + k).c_str(), accounts[i].firstTwentyFive);
+  prefs.end();
+}
+
+void loadAccounts() {
+  prefs.begin("bank", true);
+  for (int i = 0; i < ACCOUNT_COUNT; i++) {
+    String k = String(i);
+    accounts[i].balance         = prefs.getLong(("bal" + k).c_str(), accounts[i].balance);
+    accounts[i].xp              = prefs.getLong(("xp"  + k).c_str(), accounts[i].xp);
+    accounts[i].firstDeposit    = prefs.getBool(("fd"  + k).c_str(), accounts[i].firstDeposit);
+    accounts[i].firstTen        = prefs.getBool(("f10" + k).c_str(), accounts[i].firstTen);
+    accounts[i].firstTwentyFive = prefs.getBool(("f25" + k).c_str(), accounts[i].firstTwentyFive);
+  }
+  prefs.end();
 }
 
 // ==========================
@@ -588,6 +634,51 @@ void drawApprovals() {
 }
 
 // ==========================
+// DAD TAX SCREEN
+// Shows the calculated tax and asks for confirmation before applying.
+// ==========================
+void drawDadTax() {
+  currentScreen = DAD_TAX;
+  drawHeader("DAD TAX");
+
+  long tax = (accounts[selectedAccount].balance * DAD_TAX_PERCENT) / 100;
+
+  tft.setTextColor(COL_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(25, 55);
+  tft.print(accounts[selectedAccount].name);
+
+  tft.setTextSize(1);
+  tft.setTextColor(COL_TEXT);
+  tft.setCursor(25, 95);
+  tft.print("Balance: ");
+  tft.print(moneyText(accounts[selectedAccount].balance));
+
+  tft.setTextColor(COL_BAD);
+  tft.setCursor(25, 120);
+  tft.print("Tax (");
+  tft.print(DAD_TAX_PERCENT);
+  tft.print("%):  -");
+  tft.print(moneyText(tax));
+
+  tft.setTextColor(COL_GOOD);
+  tft.setCursor(25, 145);
+  tft.print("After:   ");
+  tft.print(moneyText(accounts[selectedAccount].balance - tax));
+
+  if (tax == 0) {
+    tft.setTextColor(COL_WARN);
+    tft.setTextSize(2);
+    tft.setCursor(30, 195);
+    tft.print("Nothing to tax!");
+    drawButton({20, 270, 200, 36, "BACK"}, COL_PANEL);
+  } else {
+    drawButton({20, 185, 200, 42, "APPLY TAX"}, COL_BAD);
+    drawButton({20, 240, 200, 36, "CANCEL"}, COL_PANEL);
+  }
+}
+
+// ==========================
 // AMOUNT SCREEN
 // ==========================
 void updateAmountDisplay() {
@@ -640,14 +731,19 @@ void drawMessage(String title, String line1, String line2, bool error) {
 
 // ==========================
 // TOUCH READ
+// Non-blocking: rejects events closer than TOUCH_DEBOUNCE_MS apart
+// so the CPU is never stalled by delay().
 // ==========================
 bool getTouch(int &x, int &y) {
   if (!touch.touched()) return false;
 
+  unsigned long now = millis();
+  if (now - lastTouchMs < TOUCH_DEBOUNCE_MS) return false;
+
   TS_Point p = touch.getPoint();
 
-  x = map(p.x, 200, 3800, 0, SCREEN_W);
-  y = map(p.y, 200, 3800, 0, SCREEN_H);
+  x = map(p.x, TOUCH_CAL_MIN_X, TOUCH_CAL_MAX_X, 0, SCREEN_W);
+  y = map(p.y, TOUCH_CAL_MIN_Y, TOUCH_CAL_MAX_Y, 0, SCREEN_H);
 
   x = constrain(x, 0, SCREEN_W);
   y = constrain(y, 0, SCREEN_H);
@@ -657,7 +753,7 @@ bool getTouch(int &x, int &y) {
   Serial.print(" Y=");
   Serial.println(y);
 
-  delay(180);
+  lastTouchMs = now;
   return true;
 }
 
@@ -749,14 +845,17 @@ void handleAmount(String key) {
       accounts[selectedAccount].xp += 10;
       accounts[selectedAccount].firstDeposit = true;
       addHistory(selectedAccount, "+" + moneyText(pennies) + " Admin");
+      updateAchievements(selectedAccount);
+      saveAccount(selectedAccount);
       drawMessage("DEPOSIT OK", "+" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false);
     } else {
       accounts[selectedAccount].balance -= pennies;
       addHistory(selectedAccount, "-" + moneyText(pennies) + " Admin");
+      updateAchievements(selectedAccount);
+      saveAccount(selectedAccount);
       drawMessage("WITHDRAW OK", "-" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false);
     }
 
-    updateAchievements(selectedAccount);
     return;
   }
 
@@ -843,7 +942,7 @@ void handleTouch(int x, int y) {
   else if (currentScreen == ADMIN_ACTION) {
     if (inside({20, 100, 200, 42, ""}, x, y))      drawAmount(true);
     else if (inside({20, 155, 200, 42, ""}, x, y)) drawAmount(false);
-    else if (inside({20, 215, 200, 42, ""}, x, y)) drawAmount(false);
+    else if (inside({20, 215, 200, 42, ""}, x, y)) drawDadTax();
     else if (inside({20, 270, 200, 36, ""}, x, y)) drawAdminSelect();
   }
 
@@ -869,6 +968,7 @@ void handleTouch(int x, int y) {
 
           chores[i].pendingChild = -1;
           updateAchievements(child);
+          saveAccount(child);
 
           drawMessage("APPROVED", accounts[child].name, "+" + moneyText(reward), false);
           return;
@@ -879,6 +979,19 @@ void handleTouch(int x, int y) {
     }
 
     if (inside({20, 270, 200, 36, ""}, x, y)) drawAdminMenu();
+  }
+
+  else if (currentScreen == DAD_TAX) {
+    long tax = (accounts[selectedAccount].balance * DAD_TAX_PERCENT) / 100;
+    if (tax > 0 && inside({20, 185, 200, 42, ""}, x, y)) {
+      accounts[selectedAccount].balance -= tax;
+      addHistory(selectedAccount, "-" + moneyText(tax) + " Dad Tax");
+      updateAchievements(selectedAccount);
+      saveAccount(selectedAccount);
+      drawMessage("TAX APPLIED", "-" + moneyText(tax), "Bal " + moneyText(accounts[selectedAccount].balance), false);
+    } else if (inside({20, 240, 200, 36, ""}, x, y) || inside({20, 270, 200, 36, ""}, x, y)) {
+      drawAdminAction();
+    }
   }
 
   else if (currentScreen == MESSAGE) {
@@ -911,8 +1024,15 @@ void setup() {
 
   setRGB(false, false, false);
 
+  // Restore balances/XP from NVS. On a brand-new device the Preferences
+  // namespace won't exist, so getLong/getBool return the defaults already
+  // baked into the accounts[] array.
+  bool freshInstall = !prefs.begin("bank", true);
+  prefs.end();
+  loadAccounts();
+
   for (int i = 0; i < ACCOUNT_COUNT; i++) {
-    addHistory(i, "Account opened");
+    if (freshInstall) addHistory(i, "Account opened");
   }
 
   Serial.println("Ready.");
