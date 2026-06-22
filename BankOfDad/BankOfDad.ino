@@ -3,6 +3,8 @@
 #include "Adafruit_ILI9341.h"
 #include "XPT2046_Touchscreen.h"
 #include <Preferences.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
 // ==========================
 // DISPLAY PINS - YOUR WORKING SETUP
@@ -40,6 +42,15 @@ XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 // ==========================
 #define SCREEN_W 240
 #define SCREEN_H 320
+
+// ==========================
+// WEB ADMIN
+// ESP32 creates its own hotspot. Connect phone/laptop to the SSID
+// below then open http://192.168.4.1 to edit chores.
+// Change WIFI_AP_PASS to any 8+ character string you prefer.
+// ==========================
+#define WIFI_AP_SSID "BankOfDad"
+#define WIFI_AP_PASS "pocket123"
 
 // ==========================
 // TOUCH CALIBRATION
@@ -106,9 +117,9 @@ int historyIndex[ACCOUNT_COUNT] = {0, 0, 0, 0};
 // pendingChild >= 0 means waiting for Dad approval
 // ==========================
 struct Chore {
-  const char* title;
+  char title[32];   // mutable so the web editor can update it
   long reward;
-  int pendingChild;
+  int  pendingChild;
 };
 
 Chore chores[CHORE_COUNT] = {
@@ -161,6 +172,7 @@ bool depositMode = true;
 
 Preferences      prefs;
 unsigned long    lastTouchMs = 0;
+WebServer        webServer(80);
 
 // ==========================
 // RGB CONTROL
@@ -226,6 +238,27 @@ void loadAccounts() {
     accounts[i].firstDeposit    = prefs.getBool(("fd"  + k).c_str(), accounts[i].firstDeposit);
     accounts[i].firstTen        = prefs.getBool(("f10" + k).c_str(), accounts[i].firstTen);
     accounts[i].firstTwentyFive = prefs.getBool(("f25" + k).c_str(), accounts[i].firstTwentyFive);
+  }
+  prefs.end();
+}
+
+void saveChores() {
+  prefs.begin("bank", false);
+  for (int i = 0; i < CHORE_COUNT; i++) {
+    String k = String(i);
+    prefs.putString(("ct" + k).c_str(), chores[i].title);
+    prefs.putLong  (("cr" + k).c_str(), chores[i].reward);
+  }
+  prefs.end();
+}
+
+void loadChores() {
+  prefs.begin("bank", true);
+  for (int i = 0; i < CHORE_COUNT; i++) {
+    String k     = String(i);
+    String title = prefs.getString(("ct" + k).c_str(), chores[i].title);
+    title.toCharArray(chores[i].title, 32);
+    chores[i].reward = prefs.getLong(("cr" + k).c_str(), chores[i].reward);
   }
   prefs.end();
 }
@@ -567,6 +600,106 @@ void drawLeaderboard() {
 }
 
 // ==========================
+// WEB ADMIN — Chore Editor
+// Served at http://192.168.4.1 on the "BankOfDad" AP.
+// Rewards are submitted in GBP (e.g. 1.00) and stored in pennies.
+// ==========================
+String buildChorePage(bool saved) {
+  String html =
+    "<!DOCTYPE html><html><head>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>Bank of Dad</title><style>"
+    "body{font-family:sans-serif;max-width:480px;margin:0 auto;padding:16px;"
+      "background:#111;color:#eee}"
+    "h1{color:#e74c3c;margin:0 0 2px}"
+    "p.sub{color:#888;margin:0 0 16px;font-size:.9em}"
+    ".chore{background:#222;padding:12px;margin:8px 0;border-radius:8px}"
+    "label{display:block;margin-bottom:4px;font-size:.85em;color:#aaa}"
+    "input[type=text],input[type=number]{"
+      "width:100%;box-sizing:border-box;padding:8px;"
+      "background:#333;color:#fff;border:1px solid #555;"
+      "border-radius:4px;margin-bottom:8px}"
+    "button{width:100%;padding:12px;background:#e74c3c;color:#fff;"
+      "border:none;border-radius:8px;font-size:1em;cursor:pointer;margin-top:8px}"
+    "button:hover{background:#c0392b}"
+    ".ok{padding:10px;background:#27ae60;border-radius:6px;"
+      "margin-bottom:12px;text-align:center}"
+    ".warn{font-size:.8em;color:#e67e22;margin-top:4px}"
+    "</style></head><body>"
+    "<h1>Bank of Dad</h1>"
+    "<p class='sub'>Chore Editor &mdash; changes take effect immediately</p>";
+
+  if (saved) html += "<div class='ok'>&#10003; Changes saved!</div>";
+
+  html += "<form method='POST' action='/update'>";
+
+  for (int i = 0; i < CHORE_COUNT; i++) {
+    char rewardBuf[12];
+    dtostrf(chores[i].reward / 100.0f, 1, 2, rewardBuf);
+
+    String pending = "";
+    if (chores[i].pendingChild >= 0)
+      pending = "<p class='warn'>&#9888; Pending approval for "
+                + String(accounts[chores[i].pendingChild].name) + "</p>";
+
+    html += "<div class='chore'>";
+    html += "<label>Chore " + String(i + 1) + " &mdash; Name</label>";
+    html += "<input type='text' name='t" + String(i) + "' value=\"";
+    html += String(chores[i].title);
+    html += "\" maxlength='31' required>";
+    html += "<label>Reward (GBP)</label>";
+    html += "<input type='number' name='r" + String(i) + "' step='0.01' min='0' value='";
+    html += String(rewardBuf);
+    html += "'>";
+    html += pending;
+    html += "</div>";
+  }
+
+  html += "<button type='submit'>Save Chores</button></form>"
+          "</body></html>";
+
+  return html;
+}
+
+void setupWebServer() {
+  webServer.on("/", HTTP_GET, []() {
+    webServer.send(200, "text/html", buildChorePage(webServer.hasArg("saved")));
+  });
+
+  webServer.on("/update", HTTP_POST, []() {
+    for (int i = 0; i < CHORE_COUNT; i++) {
+      String tk = "t" + String(i);
+      String rk = "r" + String(i);
+
+      if (webServer.hasArg(tk)) {
+        String val = webServer.arg(tk);
+        val.trim();
+        if (val.length() > 0 && val.length() < 32) {
+          strncpy(chores[i].title, val.c_str(), 31);
+          chores[i].title[31] = '\0';
+        }
+      }
+
+      if (webServer.hasArg(rk)) {
+        float pounds = webServer.arg(rk).toFloat();
+        if (pounds >= 0.0f)
+          chores[i].reward = (long)(pounds * 100.0f + 0.5f);
+      }
+    }
+
+    saveChores();
+
+    webServer.sendHeader("Location", "/?saved=1");
+    webServer.send(302, "text/plain", "");
+  });
+
+  webServer.onNotFound([]() {
+    webServer.sendHeader("Location", "/");
+    webServer.send(302, "text/plain", "");
+  });
+}
+
+// ==========================
 // ADMIN SCREENS
 // ==========================
 void drawAdminMenu() {
@@ -574,6 +707,14 @@ void drawAdminMenu() {
   setRGB(true, true, false);
 
   drawHeader("DAD ADMIN");
+
+  // Show the AP hotspot name and URL so Dad knows how to open the web editor
+  tft.setTextColor(ILI9341_LIGHTGREY);
+  tft.setTextSize(1);
+  tft.setCursor(15, 47);
+  tft.print("Web: ");
+  tft.print(WIFI_AP_SSID);
+  tft.print(" > 192.168.4.1");
 
   drawButton({20, 70, 200, 42, "EDIT MONEY"}, COL_GOOD);
   drawButton({20, 130, 200, 42, "APPROVALS"}, COL_WARN);
@@ -1030,10 +1171,21 @@ void setup() {
   bool freshInstall = !prefs.begin("bank", true);
   prefs.end();
   loadAccounts();
+  loadChores();
 
   for (int i = 0; i < ACCOUNT_COUNT; i++) {
     if (freshInstall) addHistory(i, "Account opened");
   }
+
+  WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASS);
+  Serial.print("AP started: ");
+  Serial.print(WIFI_AP_SSID);
+  Serial.print("  IP: ");
+  Serial.println(WiFi.softAPIP());
+
+  setupWebServer();
+  webServer.begin();
+  Serial.println("Web chore editor: http://192.168.4.1");
 
   Serial.println("Ready.");
   Serial.println("Admin PIN: 9999");
@@ -1046,8 +1198,9 @@ void setup() {
 // LOOP
 // ==========================
 void loop() {
-  int x, y;
+  webServer.handleClient();
 
+  int x, y;
   if (getTouch(x, y)) {
     handleTouch(x, y);
   }
