@@ -8,7 +8,7 @@ A retro family chore economy system where children earn pocket money, XP, levels
 | **CYD** | `BankOfDad/BankOfDad.ino` | ESP32 CYD (JC2432W328) | Adafruit GFX |
 | **LVGL v2.2** | `BankOfDadLVGL/BankOfDadLVGL.ino` | ESP32-S3 JC8048W550C | LVGL 9 |
 
-The LVGL target is the full commercial product build (UK household economy, shop, achievements, stats, notifications, modular architecture). The web demo is a browser prototype with `localStorage`. The CYD sketch is the original compact ESP32 build.
+The LVGL target is the full commercial product build (UK household economy, shop, achievements, stats, notifications, modular architecture). The web demo is a browser prototype with `localStorage`. The CYD sketch (`BankOfDad/`) contains only the original ESP32 CYD build — the ESP32-S3 LVGL build lives exclusively in `BankOfDadLVGL/`.
 
 ---
 
@@ -82,7 +82,9 @@ Open `index.html` in a browser — no install step required.
 
 ---
 
-## Target 1 — CYD (`BankOfDad/BankOfDad.ino`)
+## Target 1 — CYD (`BankOfDad/`)
+
+Open `BankOfDad/BankOfDad.ino` in the Arduino IDE. This folder is **CYD only** — do not confuse it with `BankOfDadLVGL/` (ESP32-S3).
 
 ### Hardware
 
@@ -205,6 +207,7 @@ The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library ve
 ```
 BankOfDadLVGL/
 ├── BankOfDadLVGL.ino   ← hardware init (display, touch, backlight)
+├── CHANGELOG.md        ← v2.2 product release notes
 ├── lv_conf.h           ← LVGL 9 configuration
 ├── app.h / app.cpp     ← thin shell: wires model + platform + UI
 ├── model.h / model.cpp ← data model, UK economy, NVS v2 persistence
