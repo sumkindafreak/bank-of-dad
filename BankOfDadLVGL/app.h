@@ -60,6 +60,17 @@ enum Screen {
     SCR_MESSAGE
 };
 
+/* Where the MESSAGE screen OK button navigates */
+enum MsgReturn {
+    MSG_RET_HOME,
+    MSG_RET_PIN,
+    MSG_RET_ADMIN_PIN,
+    MSG_RET_ACCOUNT,
+    MSG_RET_CHORES,
+    MSG_RET_ADMIN_MENU,
+    MSG_RET_ADMIN_ACTION
+};
+
 /* ---- Shared globals (defined in app.cpp) ---- */
 extern Account   accounts[ACCOUNT_COUNT];
 extern Chore     chores[CHORE_COUNT];

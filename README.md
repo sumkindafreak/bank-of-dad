@@ -22,6 +22,7 @@ Both sketches share the same features, data format, NVS key scheme, and web chor
 | **Goals** | Visual progress bar toward a savings target |
 | **Chores** | Kids request chores; Dad approves and pays out |
 | **Chore Editor** | Edit chore names and rewards from any browser over WiFi (no router needed) |
+| **SD Card** | Optional FAT32 card — extended transaction logs + account backup/restore |
 | **Dad Tax** | Percentage-based deduction (default 10%) with confirmation screen |
 | **Badges** | Achievements: first deposit, save £10, save £25, Level 2 |
 | **Leaderboard** | Top-savers ranking across all accounts |
@@ -59,7 +60,18 @@ Install via the Arduino Library Manager (also listed in `libraries.txt`):
 | `Adafruit GFX Library` | ≥ 1.11 |
 | `Adafruit ILI9341` | ≥ 1.6 |
 | `XPT2046_Touchscreen` | ≥ 1.4 |
-| `WiFi` / `WebServer` / `Preferences` | Built into ESP32 Arduino core |
+| `WiFi` / `WebServer` / `Preferences` / `SD` | Built into ESP32 Arduino core |
+
+### microSD card (optional)
+
+Insert a **FAT32** microSD card before boot. CS = **GPIO 5** (shares the TFT SPI bus).
+
+| Path on card | Contents |
+|---|---|
+| `/bank/Nixon.log` (one per child) | Append-only transaction log |
+| `/bank/backup.csv` | Balance + XP snapshot (written on every save) |
+
+History screen shows up to **12 lines** from SD when mounted. On first boot with blank NVS, `backup.csv` is used to restore balances if present. Admin menu shows `SD OK` or `No SD`.
 
 ### Touch Calibration
 
@@ -112,9 +124,27 @@ Install via the Arduino Library Manager:
 | `Arduino_GFX_Library` | moononournation/Arduino_GFX |
 | `TAMC_GT911` | TAMCTech/TAMC_GT911 |
 | `lvgl` | lvgl/lvgl ≥ 9.x |
-| `WiFi` / `WebServer` / `Preferences` | Built into ESP32-S3 Arduino core |
+| `WiFi` / `WebServer` / `Preferences` / `SD` | Built into ESP32-S3 Arduino core |
 
-### LVGL Configuration
+### microSD card (optional)
+
+Insert a **FAT32** microSD card before boot.
+
+| Pin | GPIO |
+|---|---|
+| CS | 10 |
+| SCK | 12 |
+| MISO | 13 |
+| MOSI | 11 |
+
+**On card:** same `/bank/*.log` and `/bank/backup.csv` layout as the CYD sketch (NVS-compatible).
+
+- **History screen** shows up to 20 lines from SD when a card is present.
+- **Admin menu** shows SD status in green when mounted.
+
+Change pins in `BankOfDadLVGL/storage.h` if your board uses different SD wiring.
+
+---
 
 The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library version adds new required defines, copy the library's `lv_conf_template.h` into `BankOfDadLVGL/`, rename it `lv_conf.h`, change `#if 0` → `#if 1`, then apply the settings from the included `lv_conf.h`.
 
@@ -194,6 +224,7 @@ Default rate is **10%**, changeable with:
 
 - All money is stored in **pennies** to avoid floating-point rounding. `moneyText()` formats as `GBP x.xx`.
 - NVS keys: `bal`, `xp`, `fd`, `f10`, `f25` + account index; `ct`, `cr` + chore index — all in the `bank` namespace. Both sketches use the same key scheme so data is compatible if you ever swap hardware.
+- **PIN security:** the message screen OK button routes to an explicit destination per message type. A wrong PIN returns to the PIN screen — it does **not** grant account access (this was a bug in earlier versions where `selectedAccount >= 0` sent users straight to the account screen after any error).
 - **CYD**: touch debounce uses `millis()` — no `delay()` call.
 - **LVGL**: `lv_timer_handler()` and `webServer.handleClient()` share the `loop()`. LVGL display buffers (2 × 800×20 × 2 bytes) are allocated with `ps_malloc()` in PSRAM. Large LVGL widget allocations are routed to PSRAM via `heap_caps_malloc_extmem_enable(8192)`.
 - Screen transitions use `lv_async_call()` to ensure the current LVGL event completes before the old screen is deleted.

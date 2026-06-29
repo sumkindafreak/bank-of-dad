@@ -10,6 +10,7 @@
 
 #include "app.h"
 #include "lvgl_port.h"   /* DISP_W, DISP_H */
+#include "storage.h"
 
 /* ================================================================
    DATA
@@ -95,7 +96,7 @@ static void draw_approvals();
 static void draw_dad_tax();
 static void draw_amount(bool isDeposit);
 static void draw_message(const char *title, const char *line1,
-                         const char *line2, bool isError);
+                         const char *line2, bool isError, MsgReturn ret);
 
 /* ================================================================
    UTILITY FUNCTIONS
@@ -114,6 +115,17 @@ static String moneyText(long pennies) {
 static void addHistory(int acct, String entry) {
     historyLog[acct][historyIndex[acct]] = entry;
     if (++historyIndex[acct] >= HISTORY_COUNT) historyIndex[acct] = 0;
+    storageAppendHistory(accounts[acct].name, entry.c_str());
+}
+
+static void storageBackupAll() {
+    StorageAccountSnap snap[ACCOUNT_COUNT];
+    for (int i = 0; i < ACCOUNT_COUNT; i++) {
+        snap[i] = {accounts[i].name, accounts[i].balance, accounts[i].xp,
+                   accounts[i].firstDeposit, accounts[i].firstTen,
+                   accounts[i].firstTwentyFive};
+    }
+    storageBackupAccounts(snap, ACCOUNT_COUNT);
 }
 
 static void updateAchievements(int acct) {
@@ -130,6 +142,7 @@ static void saveAccount(int i) {
     prefs.putBool(("f10" + k).c_str(), accounts[i].firstTen);
     prefs.putBool(("f25" + k).c_str(), accounts[i].firstTwentyFive);
     prefs.end();
+    storageBackupAll();
 }
 
 static void loadAccounts() {
@@ -424,6 +437,11 @@ static void on_pin_key(lv_event_t *e) {
         return;
     }
     if (key[0] == '#') {
+        if (strlen(enteredPin) != 4) {
+            draw_message("PIN INCOMPLETE", "Enter 4 digits", "", true, MSG_RET_PIN);
+            return;
+        }
+
         bool ok = false;
         if (currentScreen == SCR_ADMIN_PIN) {
             ok = (strcmp(enteredPin, "9999") == 0);
@@ -437,11 +455,9 @@ static void on_pin_key(lv_event_t *e) {
             else
                 lv_async_call(_go_account, NULL);
         } else {
-            struct MsgCtx { const char *t, *l1, *l2; bool err; };
-            static const MsgCtx ctx = {"WRONG PIN", "Try again", "", true};
-            lv_async_call([](void *d) {
-                draw_message("WRONG PIN", "Try again", "", true);
-            }, NULL);
+            MsgReturn ret = (currentScreen == SCR_ADMIN_PIN)
+                            ? MSG_RET_ADMIN_PIN : MSG_RET_PIN;
+            draw_message("WRONG PIN", "Try again", "", true, ret);
         }
         return;
     }
@@ -534,9 +550,13 @@ static void draw_history() {
     currentScreen = SCR_HISTORY;
     lv_obj_t *scr = makeScreen("HISTORY", C_ACCENT);
 
-    char sub[48];
-    snprintf(sub, sizeof(sub), "%s — recent activity",
-             accounts[selectedAccount].name);
+    char sub[56];
+    if (storageReady())
+        snprintf(sub, sizeof(sub), "%s — SD transaction log",
+                 accounts[selectedAccount].name);
+    else
+        snprintf(sub, sizeof(sub), "%s — recent activity",
+                 accounts[selectedAccount].name);
     lv_obj_t *subLbl = lv_label_create(scr);
     lv_label_set_text(subLbl, sub);
     lv_obj_set_style_text_color(subLbl, lv_color_hex(0xAAAAAA), 0);
@@ -545,18 +565,34 @@ static void draw_history() {
 
     int y = HDR_H + 50;
     bool any = false;
-    for (int i = 0; i < HISTORY_COUNT; i++) {
-        int idx = (historyIndex[selectedAccount] + i) % HISTORY_COUNT;
-        if (historyLog[selectedAccount][idx].length() > 0) {
+
+    if (storageReady()) {
+        String sdLines[20];
+        int n = storageReadHistory(accounts[selectedAccount].name, sdLines, 20);
+        for (int i = 0; i < n; i++) {
             lv_obj_t *row = lv_label_create(scr);
-            lv_label_set_text(row, historyLog[selectedAccount][idx].c_str());
+            lv_label_set_text(row, sdLines[i].c_str());
             lv_obj_set_style_text_color(row, C_TEXT, 0);
             lv_obj_set_style_text_font(row, F20, 0);
             lv_obj_set_pos(row, BTN_X, y);
-            y += 42;
+            y += 34;
             any = true;
         }
+    } else {
+        for (int i = 0; i < HISTORY_COUNT; i++) {
+            int idx = (historyIndex[selectedAccount] + i) % HISTORY_COUNT;
+            if (historyLog[selectedAccount][idx].length() > 0) {
+                lv_obj_t *row = lv_label_create(scr);
+                lv_label_set_text(row, historyLog[selectedAccount][idx].c_str());
+                lv_obj_set_style_text_color(row, C_TEXT, 0);
+                lv_obj_set_style_text_font(row, F20, 0);
+                lv_obj_set_pos(row, BTN_X, y);
+                y += 42;
+                any = true;
+            }
+        }
     }
+
     if (!any) {
         lv_obj_t *none = lv_label_create(scr);
         lv_label_set_text(none, "No history yet");
@@ -635,11 +671,12 @@ static void on_chore_btn(lv_event_t *e) {
         static char titleBuf[32];
         strncpy(titleBuf, chores[i].title, 31);
         lv_async_call([](void *d) {
-            draw_message("JOB REQUESTED", titleBuf, "Waiting Dad", false);
+            (void)d;
+            draw_message("JOB REQUESTED", titleBuf, "Waiting Dad", false, MSG_RET_CHORES);
         }, NULL);
     } else {
         lv_async_call([](void*) {
-            draw_message("NOT AVAILABLE", "Already pending", "", true);
+            draw_message("NOT AVAILABLE", "Already pending", "", true, MSG_RET_CHORES);
         }, NULL);
     }
 }
@@ -785,15 +822,25 @@ static void draw_admin_menu() {
     lv_obj_t *scr = makeScreen("DAD ADMIN", C_BAD);
 
     /* WiFi hint */
-    char hint[56];
-    snprintf(hint, sizeof(hint), "Web: %s  \xe2\x86\x92  192.168.4.1", WIFI_AP_SSID);
+    char hint[80];
+    snprintf(hint, sizeof(hint), "Web: %s  ->  192.168.4.1", WIFI_AP_SSID);
     lv_obj_t *wifiLbl = lv_label_create(scr);
     lv_label_set_text(wifiLbl, hint);
     lv_obj_set_style_text_color(wifiLbl, lv_color_hex(0xAAAAAA), 0);
     lv_obj_set_style_text_font(wifiLbl, F14, 0);
-    lv_obj_set_pos(wifiLbl, BTN_X, HDR_H + 10);
+    lv_obj_set_pos(wifiLbl, BTN_X, HDR_H + 6);
 
-    int y = HDR_H + 48;
+    char sdHint[48];
+    snprintf(sdHint, sizeof(sdHint), "%s%s",
+             storageStatusText(),
+             storageReady() ? " — history + backup on card" : "");
+    lv_obj_t *sdLbl = lv_label_create(scr);
+    lv_label_set_text(sdLbl, sdHint);
+    lv_obj_set_style_text_color(sdLbl, storageReady() ? C_GOOD : lv_color_hex(0x888888), 0);
+    lv_obj_set_style_text_font(sdLbl, F14, 0);
+    lv_obj_set_pos(sdLbl, BTN_X, HDR_H + 26);
+
+    int y = HDR_H + 52;
     y = addBtn(scr, y, "EDIT MONEY",  C_GOOD, [](lv_event_t*){ lv_async_call(_go_admin_select, NULL); }, NULL);
     y = addBtn(scr, y, "APPROVALS",   C_WARN, [](lv_event_t*){ lv_async_call(_go_approvals,    NULL); }, NULL);
     y = addBtn(scr, y, "DAD TAX",     C_BAD,  [](lv_event_t*){ lv_async_call(_go_admin_select, NULL); }, (void*)1);
@@ -883,7 +930,7 @@ static void on_approve_btn(lv_event_t *e) {
     rewardStr = "+" + moneyText(reward);
 
     lv_async_call([](void*) {
-        draw_message("APPROVED", nameBuf, rewardStr.c_str(), false);
+        draw_message("APPROVED", nameBuf, rewardStr.c_str(), false, MSG_RET_ADMIN_MENU);
     }, NULL);
 }
 
@@ -966,7 +1013,8 @@ static void draw_dad_tax() {
                 msg = "-" + moneyText(t);
                 lv_async_call([](void*) {
                     draw_message("TAX APPLIED", msg.c_str(),
-                                 moneyText(accounts[selectedAccount].balance).c_str(), false);
+                                 moneyText(accounts[selectedAccount].balance).c_str(),
+                                 false, MSG_RET_ADMIN_MENU);
                 }, NULL);
             }, NULL);
         y += BTN_H + BTN_GAP;
@@ -1000,11 +1048,11 @@ static void on_amount_key(lv_event_t *e) {
     if (key[0] == '#') {
         long pennies = atol(amountInput);
         if (pennies <= 0) {
-            lv_async_call([](void*){ draw_message("NO AMOUNT","Enter value","",true); }, NULL);
+            lv_async_call([](void*){ draw_message("NO AMOUNT","Enter value","",true, MSG_RET_ADMIN_ACTION); }, NULL);
             return;
         }
         if (!depositMode && accounts[selectedAccount].balance < pennies) {
-            lv_async_call([](void*){ draw_message("NO FUNDS","Not enough","",true); }, NULL);
+            lv_async_call([](void*){ draw_message("NO FUNDS","Not enough","",true, MSG_RET_ADMIN_ACTION); }, NULL);
             return;
         }
         if (depositMode) {
@@ -1026,7 +1074,7 @@ static void on_amount_key(lv_event_t *e) {
         l2 = "Bal " + moneyText(accounts[selectedAccount].balance);
         lv_async_call([](void*) {
             draw_message(wasDeposit ? "DEPOSIT OK" : "WITHDRAW OK",
-                         l1.c_str(), l2.c_str(), false);
+                         l1.c_str(), l2.c_str(), false, MSG_RET_ADMIN_MENU);
         }, NULL);
         return;
     }
@@ -1066,9 +1114,25 @@ static void draw_amount(bool isDeposit) {
 /* ================================================================
    MESSAGE SCREEN
    ================================================================ */
+static MsgReturn s_msgReturn = MSG_RET_HOME;
+
+static void on_message_ok(lv_event_t *e) {
+    (void)e;
+    switch (s_msgReturn) {
+        case MSG_RET_PIN:          lv_async_call(_go_pin_child,   NULL); break;
+        case MSG_RET_ADMIN_PIN:    lv_async_call(_go_pin_admin,   NULL); break;
+        case MSG_RET_ACCOUNT:      lv_async_call(_go_account,     NULL); break;
+        case MSG_RET_CHORES:       lv_async_call(_go_chores,      NULL); break;
+        case MSG_RET_ADMIN_MENU:   lv_async_call(_go_admin_menu,  NULL); break;
+        case MSG_RET_ADMIN_ACTION: lv_async_call(_go_admin_action,NULL); break;
+        default:                   lv_async_call(_go_home,        NULL); break;
+    }
+}
+
 static void draw_message(const char *title, const char *line1,
-                         const char *line2, bool isError) {
+                         const char *line2, bool isError, MsgReturn ret) {
     currentScreen = SCR_MESSAGE;
+    s_msgReturn   = ret;
     lv_color_t col = isError ? C_BAD : C_GOOD;
     lv_obj_t *scr = makeScreen(isError ? "ERROR" : "COMPLETE", col);
 
@@ -1092,12 +1156,7 @@ static void draw_message(const char *title, const char *line1,
         lv_obj_set_pos(l2, BTN_X, HDR_H + 162);
     }
 
-    addBtn(scr, DISP_H - BTN_H - 16, "OK", col,
-        [](lv_event_t*) {
-            if (adminMode)              lv_async_call(_go_admin_menu, NULL);
-            else if (selectedAccount >= 0) lv_async_call(_go_account,    NULL);
-            else                           lv_async_call(_go_home,       NULL);
-        }, NULL);
+    addBtn(scr, DISP_H - BTN_H - 16, "OK", col, on_message_ok, NULL);
 
     loadScreen(scr);
 }
@@ -1111,6 +1170,28 @@ void appSetup() {
     prefs.end();
     loadAccounts();
     loadChores();
+
+    storageInit();
+
+    if (fresh && storageReady()) {
+        StorageAccountSnap snap[ACCOUNT_COUNT];
+        for (int i = 0; i < ACCOUNT_COUNT; i++) {
+            snap[i] = {accounts[i].name, accounts[i].balance, accounts[i].xp,
+                       accounts[i].firstDeposit, accounts[i].firstTen,
+                       accounts[i].firstTwentyFive};
+        }
+        if (storageRestoreAccounts(snap, ACCOUNT_COUNT)) {
+            for (int i = 0; i < ACCOUNT_COUNT; i++) {
+                accounts[i].balance         = snap[i].balance;
+                accounts[i].xp              = snap[i].xp;
+                accounts[i].firstDeposit    = snap[i].firstDeposit;
+                accounts[i].firstTen        = snap[i].firstTen;
+                accounts[i].firstTwentyFive = snap[i].firstTwentyFive;
+                saveAccount(i);
+            }
+            Serial.println("Restored account data from SD backup");
+        }
+    }
 
     if (fresh) {
         for (int i = 0; i < ACCOUNT_COUNT; i++)

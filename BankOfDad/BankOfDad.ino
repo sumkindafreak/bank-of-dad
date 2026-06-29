@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include "storage.h"
 
 // ==========================
 // DISPLAY PINS - YOUR WORKING SETUP
@@ -162,7 +163,19 @@ enum Screen {
   MESSAGE
 };
 
+/* Where the MESSAGE screen OK button should navigate */
+enum MsgDest {
+  MSG_HOME,
+  MSG_PIN,
+  MSG_ADMIN_PIN,
+  MSG_ACCOUNT,
+  MSG_CHORES,
+  MSG_ADMIN_MENU,
+  MSG_ADMIN_ACTION
+};
+
 Screen currentScreen = HOME;
+MsgDest  msgDest     = MSG_HOME;
 
 int selectedAccount = -1;
 String enteredPin = "";
@@ -207,10 +220,22 @@ void addHistory(int account, String entry) {
   historyIndex[account]++;
   if (historyIndex[account] >= HISTORY_COUNT) historyIndex[account] = 0;
 
+  storageAppendHistory(accounts[account].name, entry.c_str());
+
   Serial.print("History added for ");
   Serial.print(accounts[account].name);
   Serial.print(": ");
   Serial.println(entry);
+}
+
+static void storageBackupAll() {
+  StorageAccountSnap snap[ACCOUNT_COUNT];
+  for (int i = 0; i < ACCOUNT_COUNT; i++) {
+    snap[i] = {accounts[i].name, accounts[i].balance, accounts[i].xp,
+               accounts[i].firstDeposit, accounts[i].firstTen,
+               accounts[i].firstTwentyFive};
+  }
+  storageBackupAccounts(snap, ACCOUNT_COUNT);
 }
 
 // ==========================
@@ -227,6 +252,7 @@ void saveAccount(int i) {
   prefs.putBool(("f10" + k).c_str(), accounts[i].firstTen);
   prefs.putBool(("f25" + k).c_str(), accounts[i].firstTwentyFive);
   prefs.end();
+  storageBackupAll();
 }
 
 void loadAccounts() {
@@ -441,19 +467,34 @@ void drawHistory() {
   tft.setTextSize(1);
   tft.setCursor(15, 50);
   tft.print(accounts[selectedAccount].name);
-  tft.print(" recent activity");
+  if (storageReady()) tft.print("  (SD log)");
+  else tft.print(" recent activity");
 
   int y = 75;
-  for (int i = 0; i < HISTORY_COUNT; i++) {
-    int idx = (historyIndex[selectedAccount] + i) % HISTORY_COUNT;
-    if (historyLog[selectedAccount][idx].length() > 0) {
+  bool any = false;
+
+  if (storageReady()) {
+    String sdLines[12];
+    int n = storageReadHistory(accounts[selectedAccount].name, sdLines, 12);
+    for (int i = 0; i < n; i++) {
       tft.setCursor(12, y);
-      tft.print(historyLog[selectedAccount][idx]);
-      y += 28;
+      tft.print(sdLines[i]);
+      y += 22;
+      any = true;
+    }
+  } else {
+    for (int i = 0; i < HISTORY_COUNT; i++) {
+      int idx = (historyIndex[selectedAccount] + i) % HISTORY_COUNT;
+      if (historyLog[selectedAccount][idx].length() > 0) {
+        tft.setCursor(12, y);
+        tft.print(historyLog[selectedAccount][idx]);
+        y += 28;
+        any = true;
+      }
     }
   }
 
-  if (y == 75) {
+  if (!any) {
     tft.setTextSize(2);
     tft.setCursor(30, 130);
     tft.print("No history yet");
@@ -716,6 +757,10 @@ void drawAdminMenu() {
   tft.print(WIFI_AP_SSID);
   tft.print(" > 192.168.4.1");
 
+  tft.setCursor(15, 58);
+  tft.print(storageStatusText());
+  if (storageReady()) tft.print(" — history + backup on card");
+
   drawButton({20, 70, 200, 42, "EDIT MONEY"}, COL_GOOD);
   drawButton({20, 130, 200, 42, "APPROVALS"}, COL_WARN);
   drawButton({20, 190, 200, 42, "DAD TAX"}, COL_BAD);
@@ -847,8 +892,9 @@ void drawAmount(bool deposit) {
 // ==========================
 // MESSAGE SCREEN
 // ==========================
-void drawMessage(String title, String line1, String line2, bool error) {
+void drawMessage(String title, String line1, String line2, bool error, MsgDest dest) {
   currentScreen = MESSAGE;
+  msgDest = dest;
 
   if (error) setRGB(true, false, false);
   else setRGB(false, true, false);
@@ -940,14 +986,20 @@ void handlePin(String key) {
   }
 
   if (key == "#") {
+    if (enteredPin.length() != 4) {
+      drawMessage("PIN INCOMPLETE", "Enter 4 digits", "", true, MSG_PIN);
+      return;
+    }
+
     if (currentScreen == ADMIN_PIN) {
       if (enteredPin == "9999") drawAdminMenu();
-      else drawMessage("WRONG PIN", "Try again", "", true);
+      else drawMessage("WRONG PIN", "Try again", "", true, MSG_ADMIN_PIN);
     } else {
-      if (selectedAccount >= 0 && enteredPin == accounts[selectedAccount].pin) {
+      if (selectedAccount >= 0 &&
+          enteredPin.equals(accounts[selectedAccount].pin)) {
         drawAccount();
       } else {
-        drawMessage("WRONG PIN", "Try again", "", true);
+        drawMessage("WRONG PIN", "Try again", "", true, MSG_PIN);
       }
     }
     return;
@@ -972,12 +1024,12 @@ void handleAmount(String key) {
     long pennies = amountInput.toInt();
 
     if (pennies <= 0) {
-      drawMessage("NO AMOUNT", "Enter value", "", true);
+      drawMessage("NO AMOUNT", "Enter value", "", true, MSG_ADMIN_ACTION);
       return;
     }
 
     if (!depositMode && accounts[selectedAccount].balance < pennies) {
-      drawMessage("NO FUNDS", "Not enough", "", true);
+      drawMessage("NO FUNDS", "Not enough", "", true, MSG_ADMIN_ACTION);
       return;
     }
 
@@ -988,13 +1040,13 @@ void handleAmount(String key) {
       addHistory(selectedAccount, "+" + moneyText(pennies) + " Admin");
       updateAchievements(selectedAccount);
       saveAccount(selectedAccount);
-      drawMessage("DEPOSIT OK", "+" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false);
+      drawMessage("DEPOSIT OK", "+" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false, MSG_ADMIN_MENU);
     } else {
       accounts[selectedAccount].balance -= pennies;
       addHistory(selectedAccount, "-" + moneyText(pennies) + " Admin");
       updateAchievements(selectedAccount);
       saveAccount(selectedAccount);
-      drawMessage("WITHDRAW OK", "-" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false);
+      drawMessage("WITHDRAW OK", "-" + moneyText(pennies), "Bal " + moneyText(accounts[selectedAccount].balance), false, MSG_ADMIN_MENU);
     }
 
     return;
@@ -1050,9 +1102,9 @@ void handleTouch(int x, int y) {
         if (chores[i].pendingChild == -1) {
           chores[i].pendingChild = selectedAccount;
           addHistory(selectedAccount, "Requested " + String(chores[i].title));
-          drawMessage("JOB REQUESTED", chores[i].title, "Waiting Dad", false);
+          drawMessage("JOB REQUESTED", chores[i].title, "Waiting Dad", false, MSG_CHORES);
         } else {
-          drawMessage("NOT AVAILABLE", "Already pending", "", true);
+          drawMessage("NOT AVAILABLE", "Already pending", "", true, MSG_CHORES);
         }
         return;
       }
@@ -1111,7 +1163,7 @@ void handleTouch(int x, int y) {
           updateAchievements(child);
           saveAccount(child);
 
-          drawMessage("APPROVED", accounts[child].name, "+" + moneyText(reward), false);
+          drawMessage("APPROVED", accounts[child].name, "+" + moneyText(reward), false, MSG_ADMIN_MENU);
           return;
         }
 
@@ -1129,7 +1181,7 @@ void handleTouch(int x, int y) {
       addHistory(selectedAccount, "-" + moneyText(tax) + " Dad Tax");
       updateAchievements(selectedAccount);
       saveAccount(selectedAccount);
-      drawMessage("TAX APPLIED", "-" + moneyText(tax), "Bal " + moneyText(accounts[selectedAccount].balance), false);
+      drawMessage("TAX APPLIED", "-" + moneyText(tax), "Bal " + moneyText(accounts[selectedAccount].balance), false, MSG_ADMIN_MENU);
     } else if (inside({20, 240, 200, 36, ""}, x, y) || inside({20, 270, 200, 36, ""}, x, y)) {
       drawAdminAction();
     }
@@ -1137,9 +1189,15 @@ void handleTouch(int x, int y) {
 
   else if (currentScreen == MESSAGE) {
     if (inside({20, 250, 200, 42, ""}, x, y)) {
-      if (adminMode) drawAdminMenu();
-      else if (selectedAccount >= 0) drawAccount();
-      else drawHome();
+      switch (msgDest) {
+        case MSG_PIN:         drawPin(false); break;
+        case MSG_ADMIN_PIN:   drawPin(true);  break;
+        case MSG_ACCOUNT:     drawAccount();  break;
+        case MSG_CHORES:      drawChores();   break;
+        case MSG_ADMIN_MENU:  drawAdminMenu(); break;
+        case MSG_ADMIN_ACTION: drawAdminAction(); break;
+        default:              drawHome(); break;
+      }
     }
   }
 }
@@ -1172,6 +1230,28 @@ void setup() {
   prefs.end();
   loadAccounts();
   loadChores();
+
+  storageInit();
+
+  if (freshInstall && storageReady()) {
+    StorageAccountSnap snap[ACCOUNT_COUNT];
+    for (int i = 0; i < ACCOUNT_COUNT; i++) {
+      snap[i] = {accounts[i].name, accounts[i].balance, accounts[i].xp,
+                 accounts[i].firstDeposit, accounts[i].firstTen,
+                 accounts[i].firstTwentyFive};
+    }
+    if (storageRestoreAccounts(snap, ACCOUNT_COUNT)) {
+      for (int i = 0; i < ACCOUNT_COUNT; i++) {
+        accounts[i].balance         = snap[i].balance;
+        accounts[i].xp              = snap[i].xp;
+        accounts[i].firstDeposit    = snap[i].firstDeposit;
+        accounts[i].firstTen        = snap[i].firstTen;
+        accounts[i].firstTwentyFive = snap[i].firstTwentyFive;
+        saveAccount(i);
+      }
+      Serial.println("Restored account data from SD backup");
+    }
+  }
 
   for (int i = 0; i < ACCOUNT_COUNT; i++) {
     if (freshInstall) addHistory(i, "Account opened");
