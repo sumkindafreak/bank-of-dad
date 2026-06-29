@@ -200,7 +200,38 @@ Change pins in `BankOfDadLVGL/storage.h` if your board uses different SD wiring.
 
 ---
 
-The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library version adds new required defines, copy the library's `lv_conf_template.h` into `BankOfDadLVGL/`, rename it `lv_conf.h`, change `#if 0` → `#if 1`, then apply the settings from the included `lv_conf.h`.
+### LVGL configuration (required — fixes `lv_animimage` / `LV_USE_IMAGE` errors)
+
+Arduino compiles the **lvgl library** separately from your sketch. You need `lv_conf.h` in **two** places:
+
+```
+Documents/Arduino/libraries/
+├── lvgl/
+├── lv_conf.h          ← copy from repo arduino-libraries/lv_conf.h
+└── ...
+
+Your sketch folder/BankOfDadLVGL/
+└── lv_conf.h          ← same file (already in the repo)
+```
+
+**Windows (your PC):**
+
+1. Copy `arduino-libraries/lv_conf.h` from this repo to  
+   `C:\Users\tjpro\Documents\Arduino\libraries\lv_conf.h`
+2. If an old `lv_conf.h` already exists there, **replace** it (do not merge).
+3. Confirm these lines inside the file:
+   ```cpp
+   #if 1          /* must be 1 — not 0 */
+   #define LV_USE_ANIMIMG   0
+   #define LV_USE_IMAGE     1
+   ```
+4. Restart Arduino IDE and compile again.
+
+The sketch folder copy alone is **not enough** — that is why you still see the error even after editing `BankOfDadLVGL/lv_conf.h`.
+
+---
+
+The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library version adds new required defines, merge updates from the library's `lv_conf_template.h` into both copies above.
 
 ### File structure (v2.2)
 

@@ -10,6 +10,7 @@
 
 #define LV_CONF_INCLUDE_SIMPLE
 
+#include "lv_conf.h"
 #include <Arduino_GFX_Library.h>
 #include <TAMC_GT911.h>
 #include "app.h"
