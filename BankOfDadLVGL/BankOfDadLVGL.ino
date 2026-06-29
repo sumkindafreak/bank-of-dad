@@ -1,6 +1,7 @@
 /*
- * BANK OF DAD — LVGL 9 retro terminal
+ * BANK OF DAD v2.2 — LVGL 9 retro family banking terminal
  * JC8048W550C | ESP32-S3 | 800x480 RGB | GT911 | rotated 90° (480x800 UI)
+ * Modules: model, ui_lvgl, ui_platform, ui_fx, platform, touch_lvgl, rgb_sync
  *
  * Tools: ESP32S3 Dev Module | OPI PSRAM | 16MB Flash | QIO 80MHz | USB CDC On Boot
  *

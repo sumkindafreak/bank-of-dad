@@ -5,28 +5,43 @@ A touch-screen pocket-money manager for kids. Two hardware targets are supported
 | Sketch | Board | Display | Touch | UI |
 |---|---|---|---|---|
 | `BankOfDad/` | ESP32 CYD (JC2432W328) | ILI9341 2.8″ 240×320 SPI | XPT2046 resistive | Adafruit GFX |
-| `BankOfDadLVGL/` | ESP32-S3 JC8048W550C | 5″ 800×480 RGB panel | GT911 capacitive | LVGL 9 |
+| `BankOfDadLVGL/` | ESP32-S3 JC8048W550C | 5″ 800×480 RGB panel | GT911 capacitive | LVGL 9 (v2.2 modular) |
 
-Both sketches share the same features, data format, NVS key scheme, and web chore editor.
+Both sketches share NVS persistence and the web chore editor. The LVGL target (v2.2) adds the full UK household economy, reward shop, achievements, statistics, notifications, and modular architecture.
 
 ---
 
 ## Features
+
+### Shared (both targets)
 
 | Area | Details |
 |---|---|
 | **Accounts** | 4 child accounts, each PIN-protected |
 | **Balance** | Stored in pennies (GBP), displayed as `GBP x.xx` |
 | **Persistence** | Balances, XP, and badges survive power cycles (ESP32 NVS via `Preferences`) |
-| **History** | Rolling 6-entry transaction log per account |
+| **History** | Rolling transaction log per account |
 | **Goals** | Visual progress bar toward a savings target |
 | **Chores** | Kids request chores; Dad approves and pays out |
-| **Chore Editor** | Edit chore names and rewards from any browser over WiFi (no router needed) |
+| **Chore Editor** | Edit chore rewards from any browser over WiFi (no router needed) |
 | **SD Card** | Optional FAT32 card — extended transaction logs + account backup/restore |
 | **Dad Tax** | Percentage-based deduction (default 10%) with confirmation screen |
-| **Badges** | Achievements: first deposit, save £10, save £25, Level 2 |
 | **Leaderboard** | Top-savers ranking across all accounts |
 | **Admin** | Dad PIN (9999) → deposit / withdraw / Dad Tax / approve chores |
+
+### LVGL v2.2 additions (`BankOfDadLVGL/`)
+
+| Area | Details |
+|---|---|
+| **UK Economy** | 27 household chores (max reward £4.50), categories, XP, completion counts |
+| **Reward Shop** | 12 default rewards (chocolate, cinema, theme park, etc.) — kids purchase with balance |
+| **Achievements** | 16 unlockable badges with animated popups |
+| **Savings** | Separate savings balance, interest (weekly), goal name + progress estimate |
+| **Statistics** | Lifetime/weekly/monthly earnings, chores completed, streaks, Dad tax total |
+| **Notifications** | In-app alert centre (achievements, approvals, purchases, interest) |
+| **Parent tools** | Approve/reject chores, bonus, fine, diagnostics screen |
+| **CRT theme** | Green DOS terminal aesthetic with scanline overlay |
+| **Architecture** | `model.*` data layer, `ui_lvgl.*` screens, `platform.*` WiFi web editor |
 
 ---
 
@@ -148,16 +163,22 @@ Change pins in `BankOfDadLVGL/storage.h` if your board uses different SD wiring.
 
 The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library version adds new required defines, copy the library's `lv_conf_template.h` into `BankOfDadLVGL/`, rename it `lv_conf.h`, change `#if 0` → `#if 1`, then apply the settings from the included `lv_conf.h`.
 
-### File structure
+### File structure (v2.2)
 
 ```
 BankOfDadLVGL/
 ├── BankOfDadLVGL.ino   ← hardware init (display, touch, backlight)
 ├── lv_conf.h           ← LVGL 9 configuration
+├── app.h / app.cpp     ← thin shell: wires model + platform + UI
+├── model.h / model.cpp ← data model, UK economy, NVS v2 persistence
+├── ui_lvgl.h / ui_lvgl.cpp   ← all LVGL screens
+├── ui_platform.h / ui_platform.cpp ← CRT theme, buttons, scroll lists, keypad
+├── ui_fx.h / ui_fx.cpp       ← CRT overlay, achievement popups
+├── platform.h / platform.cpp ← WiFi AP + web chore editor
+├── rgb_sync.h / rgb_sync.cpp ← RGB status sync (future)
+├── storage.h / storage.cpp   ← optional SD card logs + backup
 ├── lvgl_port.h/cpp     ← LVGL display driver (800×480 → 480×800 portrait)
-├── touch_lvgl.h/cpp    ← GT911 → LVGL indev with 90° CW coordinate transform
-├── app.h               ← data structs, constants, function declarations
-└── app.cpp             ← all screens, logic, WiFi AP, NVS persistence
+└── touch_lvgl.h/cpp    ← GT911 → LVGL indev with 90° CW coordinate transform
 ```
 
 ### Touch Calibration (LVGL target)
@@ -193,8 +214,8 @@ Both targets create a WPA2 WiFi hotspot on boot — no home router needed.
 
 | Setting | Default | Where to change |
 |---|---|---|
-| Hotspot name | `BankOfDad` | `#define WIFI_AP_SSID` in `BankOfDad.ino` or `app.h` |
-| Hotspot password | `pocket123` | `#define WIFI_AP_PASS` |
+| Hotspot name | `BankOfDad` | `BANK_WIFI_AP_SSID` in `model.h` (LVGL) or `BankOfDad.ino` (CYD) |
+| Hotspot password | `pocket123` | `BANK_WIFI_AP_PASS` / `WIFI_AP_PASS` |
 | URL | `http://192.168.4.1` | — |
 
 **How to use:**
@@ -202,8 +223,8 @@ Both targets create a WPA2 WiFi hotspot on boot — no home router needed.
 1. On the device, enter **Dad Admin** — the screen shows `Web: BankOfDad → 192.168.4.1`
 2. Connect your phone or laptop to the `BankOfDad` WiFi network
 3. Open `http://192.168.4.1` in a browser
-4. Edit any chore name and/or reward (entered in GBP, e.g. `2.50`)
-5. Tap **Save Chores** — changes apply immediately and persist across reboots
+4. Edit chore rewards (up to £4.50 on LVGL v2.2)
+5. Tap **Save** — changes apply immediately and persist across reboots
 
 A warning is shown next to any chore with a pending child approval.
 
@@ -212,9 +233,10 @@ A warning is shown next to any chore with a pending child approval.
 ## Dad Tax
 
 Dad Tax deducts a fixed percentage of a child's current balance with a confirmation screen.  
-Default rate is **10%**, changeable with:
+Default rate is **10%** on both targets. On LVGL v2.2, tax percentage and enable flag are stored in NVS (`g_bank.config.dadTaxPercent`) and shown on the diagnostics screen.
 
 ```cpp
+// CYD sketch only — change at compile time:
 #define DAD_TAX_PERCENT 10
 ```
 
@@ -222,8 +244,9 @@ Default rate is **10%**, changeable with:
 
 ## Technical Notes
 
-- All money is stored in **pennies** to avoid floating-point rounding. `moneyText()` formats as `GBP x.xx`.
-- NVS keys: `bal`, `xp`, `fd`, `f10`, `f25` + account index; `ct`, `cr` + chore index — all in the `bank` namespace. Both sketches use the same key scheme so data is compatible if you ever swap hardware.
+- All money is stored in **pennies** to avoid floating-point rounding. `moneyText()` / `modelMoneyText()` formats as `GBP x.xx`.
+- **CYD** NVS keys: `bal`, `xp`, `fd`, `f10`, `f25` + account index; `ct`, `cr` + chore index — in the `bank` namespace.
+- **LVGL v2.2** uses storage version `220` with extended keys (`nm`, `av`, `sav`, `am`, etc.). v1 data is migrated automatically on first boot.
 - **PIN security:** the message screen OK button routes to an explicit destination per message type. A wrong PIN returns to the PIN screen — it does **not** grant account access (this was a bug in earlier versions where `selectedAccount >= 0` sent users straight to the account screen after any error).
 - **CYD**: touch debounce uses `millis()` — no `delay()` call.
 - **LVGL**: `lv_timer_handler()` and `webServer.handleClient()` share the `loop()`. LVGL display buffers (2 × 800×20 × 2 bytes) are allocated with `ps_malloc()` in PSRAM. Large LVGL widget allocations are routed to PSRAM via `heap_caps_malloc_extmem_enable(8192)`.
