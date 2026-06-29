@@ -1,19 +1,56 @@
 # Bank of Dad
 
-A touch-screen pocket-money manager for kids. Two hardware targets are supported — pick the one that matches your board.
+A retro family chore economy system where children earn pocket money, XP, levels, badges, streaks, and prize-shop rewards. Three targets are supported — pick the one that matches how you are running it.
 
-| Sketch | Board | Display | Touch | UI |
-|---|---|---|---|---|
-| `BankOfDad/` | ESP32 CYD (JC2432W328) | ILI9341 2.8″ 240×320 SPI | XPT2046 resistive | Adafruit GFX |
-| `BankOfDadLVGL/` | ESP32-S3 JC8048W550C | 5″ 800×480 RGB panel | GT911 capacitive | LVGL 9 (v2.2 modular) |
+| Target | Folder / entry | Platform | UI |
+|---|---|---|---|
+| **Web demo** | `index.html` | Any modern browser | HTML/CSS/JS |
+| **CYD** | `BankOfDad/BankOfDad.ino` | ESP32 CYD (JC2432W328) | Adafruit GFX |
+| **LVGL v2.2** | `BankOfDadLVGL/BankOfDadLVGL.ino` | ESP32-S3 JC8048W550C | LVGL 9 |
 
-Both sketches share NVS persistence and the web chore editor. The LVGL target (v2.2) adds the full UK household economy, reward shop, achievements, statistics, notifications, and modular architecture.
+The LVGL target is the full commercial product build (UK household economy, shop, achievements, stats, notifications, modular architecture). The web demo is a browser prototype with `localStorage`. The CYD sketch is the original compact ESP32 build.
 
 ---
 
-## Features
+## Web demo
 
-### Shared (both targets)
+Open `index.html` in a browser — no install step required.
+
+### Current features
+
+- Child account dashboard
+- Household chore list with rewards capped at £4.50
+- Dad approval queue before money is awarded
+- XP and level system
+- Achievement badges
+- Daily streak rewards
+- 2% savings interest button
+- Prize shop
+- Kindness and no-reminder bonuses
+- Local browser storage using `localStorage`
+- Retro arcade / 80s computer styling
+
+### Files
+
+- `index.html` — main app layout
+- `style.css` — retro dashboard styling
+- `app.js` — child accounts, chores, approval queue, XP, badges, shop and storage logic
+
+### Planned (web)
+
+- Parent PIN login
+- Child PIN login
+- Photo proof uploads
+- Custom chore / reward shop editors
+- Export / backup data
+- Firebase sync
+- PWA install mode
+
+---
+
+## Features (ESP32 targets)
+
+### Shared (CYD + LVGL)
 
 | Area | Details |
 |---|---|
@@ -45,7 +82,7 @@ Both sketches share NVS persistence and the web chore editor. The LVGL target (v
 
 ---
 
-## Target 1 — CYD (BankOfDad)
+## Target 1 — CYD (`BankOfDad/BankOfDad.ino`)
 
 ### Hardware
 
@@ -103,7 +140,7 @@ Print raw `p.x` / `p.y` from `getTouch()` to Serial to find your panel's true ed
 
 ---
 
-## Target 2 — JC8048W550C / ESP32-S3 (BankOfDadLVGL)
+## Target 2 — JC8048W550C / ESP32-S3 (`BankOfDadLVGL/`)
 
 ### Hardware
 
@@ -196,7 +233,7 @@ Print `s_dev->tp[0].x` / `s_dev->tp[0].y` to Serial while tapping each screen co
 
 ---
 
-## Default PINs
+## Default PINs (ESP32)
 
 | Account | PIN |
 |---|---|
@@ -208,9 +245,9 @@ Print `s_dev->tp[0].x` / `s_dev->tp[0].y` to Serial while tapping each screen co
 
 ---
 
-## Web Chore Editor
+## Web Chore Editor (ESP32)
 
-Both targets create a WPA2 WiFi hotspot on boot — no home router needed.
+Both ESP32 targets create a WPA2 WiFi hotspot on boot — no home router needed.
 
 | Setting | Default | Where to change |
 |---|---|---|
@@ -233,7 +270,7 @@ A warning is shown next to any chore with a pending child approval.
 ## Dad Tax
 
 Dad Tax deducts a fixed percentage of a child's current balance with a confirmation screen.  
-Default rate is **10%** on both targets. On LVGL v2.2, tax percentage and enable flag are stored in NVS (`g_bank.config.dadTaxPercent`) and shown on the diagnostics screen.
+Default rate is **10%** on both ESP32 targets. On LVGL v2.2, tax percentage and enable flag are stored in NVS (`g_bank.config.dadTaxPercent`) and shown on the diagnostics screen.
 
 ```cpp
 // CYD sketch only — change at compile time:
@@ -247,7 +284,7 @@ Default rate is **10%** on both targets. On LVGL v2.2, tax percentage and enable
 - All money is stored in **pennies** to avoid floating-point rounding. `moneyText()` / `modelMoneyText()` formats as `GBP x.xx`.
 - **CYD** NVS keys: `bal`, `xp`, `fd`, `f10`, `f25` + account index; `ct`, `cr` + chore index — in the `bank` namespace.
 - **LVGL v2.2** uses storage version `220` with extended keys (`nm`, `av`, `sav`, `am`, etc.). v1 data is migrated automatically on first boot.
-- **PIN security:** the message screen OK button routes to an explicit destination per message type. A wrong PIN returns to the PIN screen — it does **not** grant account access (this was a bug in earlier versions where `selectedAccount >= 0` sent users straight to the account screen after any error).
+- **PIN security:** the message screen OK button routes to an explicit destination per message type. A wrong PIN returns to the PIN screen — it does **not** grant account access.
 - **CYD**: touch debounce uses `millis()` — no `delay()` call.
 - **LVGL**: `lv_timer_handler()` and `webServer.handleClient()` share the `loop()`. LVGL display buffers (2 × 800×20 × 2 bytes) are allocated with `ps_malloc()` in PSRAM. Large LVGL widget allocations are routed to PSRAM via `heap_caps_malloc_extmem_enable(8192)`.
 - Screen transitions use `lv_async_call()` to ensure the current LVGL event completes before the old screen is deleted.
