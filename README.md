@@ -236,6 +236,9 @@ The sketch folder includes a pre-configured `lv_conf.h`. If your LVGL library ve
 ### File structure (v2.2)
 
 ```
+arduino-libraries/
+└── lv_conf.h           ← copy to Documents/Arduino/libraries/lv_conf.h
+
 BankOfDadLVGL/
 ├── BankOfDadLVGL.ino   ← hardware init (display, touch, backlight)
 ├── CHANGELOG.md        ← v2.2 product release notes
@@ -254,16 +257,16 @@ BankOfDadLVGL/
 
 ### Touch Calibration (LVGL target)
 
-If touches are mirrored or offset, edit the two lines marked `CALIBRATE` in `touch_lvgl.cpp`:
+If touches are mirrored or offset, edit the two lines marked `CALIBRATE` in `touch_lvgl.cpp` (inside the `TOUCH_ROT_CW_90` case):
 
 ```cpp
-case ROTATION_RIGHT:
-    lx = py;                   // CALIBRATE if needed
-    ly = (SCREEN_W - 1) - px;  // CALIBRATE if needed
+case TOUCH_ROT_CW_90:
+    lx = py;                  // CALIBRATE if needed
+    ly = (SCREEN_W - 1) - px; // CALIBRATE if needed
     break;
 ```
 
-Print `s_dev->tp[0].x` / `s_dev->tp[0].y` to Serial while tapping each screen corner to verify the mapping.
+Print `points[0].x` / `points[0].y` to Serial while tapping each screen corner to verify the mapping.
 
 ---
 

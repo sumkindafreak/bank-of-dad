@@ -65,7 +65,7 @@ void setup() {
     while (1) delay(1000);
   }
 
-  touchLvglInit(touchDev, gfx->width(), gfx->height(), ROTATION_RIGHT);
+  touchLvglInit(touchDev, gfx->width(), gfx->height(), TOUCH_ROT_CW_90);
   Serial.printf("Display %ux%u rotation %d\n", gfx->width(), gfx->height(), DISPLAY_ROTATION);
 
   appSetup();

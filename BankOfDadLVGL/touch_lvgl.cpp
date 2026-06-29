@@ -1,14 +1,13 @@
 #include "touch_lvgl.h"
 #include "lvgl_port.h"   /* SCREEN_W, SCREEN_H */
 
-/* Stored by the read callback */
-static TAMC_GT911 *s_dev      = nullptr;
-static int         s_dispW    = 480;
-static int         s_dispH    = 800;
-static TouchRotation s_rot    = ROTATION_RIGHT;
+static TAMC_GT911   *s_dev   = nullptr;
+static int           s_dispW = 480;
+static int           s_dispH = 800;
+static TouchRotation s_rot   = TOUCH_ROT_CW_90;
 
 /* -----------------------------------------------------------------------
-   Coordinate transform for ROTATION_RIGHT (90° CW):
+   Coordinate transform for TOUCH_ROT_CW_90 (90° CW):
      Physical GT911 gives (px, py) in [0..SCREEN_W-1, 0..SCREEN_H-1]
                                    = [0..799, 0..479]
      After 90° CW to portrait (DISP_W=480, DISP_H=800):
@@ -17,32 +16,33 @@ static TouchRotation s_rot    = ROTATION_RIGHT;
 
    If touches feel mirrored on your specific panel:
      — swap x/y or negate: adjust the two lines marked CALIBRATE below.
-     — print raw p.x / p.y to Serial and correlate with screen corners.
+     — print raw points[0].x / points[0].y to Serial and correlate with corners.
    ----------------------------------------------------------------------- */
 static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+    (void)indev;
     if (!s_dev) return;
 
     s_dev->read();
 
     if (s_dev->isTouched && s_dev->touches > 0) {
-        int px = s_dev->tp[0].x;
-        int py = s_dev->tp[0].y;
+        int px = s_dev->points[0].x;
+        int py = s_dev->points[0].y;
 
         int lx, ly;
         switch (s_rot) {
-            case ROTATION_RIGHT:          /* 90° CW — portrait, right side up */
+            case TOUCH_ROT_CW_90:
                 lx = py;                  /* CALIBRATE if needed */
                 ly = (SCREEN_W - 1) - px; /* CALIBRATE if needed */
                 break;
-            case ROTATION_LEFT:           /* 90° CCW */
+            case TOUCH_ROT_CCW_90:
                 lx = (SCREEN_H - 1) - py;
                 ly = px;
                 break;
-            case ROTATION_DOWN:           /* 180° */
+            case TOUCH_ROT_180:
                 lx = (SCREEN_W - 1) - px;
                 ly = (SCREEN_H - 1) - py;
                 break;
-            default:                      /* ROTATION_NONE */
+            default:
                 lx = px;
                 ly = py;
                 break;
