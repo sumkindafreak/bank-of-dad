@@ -1,24 +1,27 @@
 /*
  * BANK OF DAD v2.2 — LVGL 9 retro family banking terminal
  * JC8048W550C | ESP32-S3 | 800x480 RGB | GT911 | rotated 90° (480x800 UI)
+ *
  * Modules: model, ui_lvgl, ui_platform, ui_fx, platform, touch_lvgl, rgb_sync
  *
- * Tools: ESP32S3 Dev Module | OPI PSRAM | 16MB Flash | QIO 80MHz | USB CDC On Boot
+ * Arduino IDE board settings:
+ *   ESP32S3 Dev Module | OPI PSRAM | 16MB Flash | QIO 80MHz | USB CDC On Boot
  *
- * Requires lv_conf.h in this folder (copy from lvgl/lv_conf_template.h, enable #if 1)
+ * LVGL config (both required):
+ *   BankOfDadLVGL/lv_conf.h
+ *   Documents/Arduino/libraries/lv_conf.h  (copy from repo arduino-libraries/lv_conf.h)
  */
 
 #define LV_CONF_INCLUDE_SIMPLE
-
 #include "lv_conf.h"
+
 #include <Arduino_GFX_Library.h>
-#include <TAMC_GT911.h>
 #include "app.h"
 #include "lvgl_port.h"
 #include "touch_lvgl.h"
 
 #define TFT_BL 2
-/* 20-line bounce buffer stops RGB DMA drift (upward flowing overlay) on ESP32-S3 */
+/* 20-line bounce buffer stops RGB DMA drift on ESP32-S3 RGB panels */
 #define BOUNCE_BUFFER (800 * 20)
 
 TAMC_GT911 touchDev(19, 20, 18, 38, SCREEN_W, SCREEN_H);
@@ -33,7 +36,7 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     1, 16000000, false, 0, 0, BOUNCE_BUFFER);
 
 Arduino_RGB_Display *panel = new Arduino_RGB_Display(
-    800, 480, rgbpanel, DISPLAY_ROTATION, false /* batch flush in lvgl_port */);
+    800, 480, rgbpanel, DISPLAY_ROTATION, false /* flush batched in lvgl_port */);
 
 static void backlightOn() {
   pinMode(TFT_BL, OUTPUT);
@@ -50,7 +53,7 @@ static void backlightOn() {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("BANK OF DAD // LVGL 9");
+  Serial.println("BANK OF DAD v2.2 // LVGL 9");
 
   if (!psramFound() || ESP.getPsramSize() < 700000) {
     Serial.println("Enable OPI PSRAM + 16MB + QIO 80MHz");
@@ -65,8 +68,9 @@ void setup() {
     while (1) delay(1000);
   }
 
-  touchLvglInit(touchDev, gfx->width(), gfx->height(), TOUCH_ROT_CW_90);
-  Serial.printf("Display %ux%u rotation %d\n", gfx->width(), gfx->height(), DISPLAY_ROTATION);
+  /* TOUCH_ROT_CW_90 — do not use ROTATION_RIGHT (macro in TAMC_GT911.h) */
+  touchLvglInit(touchDev, DISP_W, DISP_H, TOUCH_ROT_CW_90);
+  Serial.printf("Display logical %ux%u (portrait)\n", DISP_W, DISP_H);
 
   appSetup();
 }
