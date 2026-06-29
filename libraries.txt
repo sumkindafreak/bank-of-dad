@@ -1,0 +1,6 @@
+# Arduino Library Manager names
+# Install these before compiling BankOfDad.ino
+
+Adafruit GFX Library
+Adafruit ILI9341
+XPT2046_Touchscreen
