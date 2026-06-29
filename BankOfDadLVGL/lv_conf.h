@@ -183,7 +183,7 @@
 #define LV_USE_CHECKBOX         0
 #define LV_USE_COLORWHEEL       0
 #define LV_USE_DROPDOWN         0
-#define LV_USE_IMAGE            0
+#define LV_USE_IMAGE            1   /* Required by LVGL 9 animimage header even if unused */
 #define LV_USE_IMAGEBUTTON      0
 #define LV_USE_KEYBOARD         0
 #define LV_USE_LABEL            1
