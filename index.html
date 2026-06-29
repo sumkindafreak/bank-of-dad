@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bank of Dad</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <header class="top-bar">
+    <div>
+      <p class="eyebrow">Retro Family Economy System</p>
+      <h1>Bank of Dad</h1>
+    </div>
+    <button id="resetDemoBtn" class="danger small">Reset Demo</button>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel child-panel">
+      <h2>Children</h2>
+      <div id="childrenList" class="children-list"></div>
+
+      <form id="addChildForm" class="mini-form">
+        <input id="newChildName" type="text" placeholder="New child name" maxlength="20" required />
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <section class="panel dashboard-panel">
+      <div id="childDashboard"></div>
+    </section>
+
+    <section class="panel actions-panel">
+      <h2>Chores & Rewards</h2>
+      <div id="choresList" class="card-list"></div>
+    </section>
+
+    <section class="panel approval-panel">
+      <h2>Dad Approval Queue</h2>
+      <div id="approvalQueue" class="card-list"></div>
+    </section>
+
+    <section class="panel shop-panel">
+      <h2>Prize Shop</h2>
+      <div id="rewardShop" class="card-list"></div>
+    </section>
+
+    <section class="panel admin-panel">
+      <h2>Admin Actions</h2>
+      <div class="admin-grid">
+        <button id="bonus50Btn">Award 50p Kindness Bonus</button>
+        <button id="bonus100Btn">Award £1 No Reminder Bonus</button>
+        <button id="interestBtn">Apply 2% Sunday Interest</button>
+        <button id="streakBtn">Add Daily Streak</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
