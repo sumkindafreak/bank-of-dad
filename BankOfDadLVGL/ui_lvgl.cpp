@@ -40,8 +40,10 @@ static void draw_message(const char *title, const char *line1,
                          const char *line2, bool isError, MsgReturn ret);
 
 static MsgReturn s_msgReturn = MSG_RET_HOME;
-static lv_obj_t *s_pinLabel = nullptr;
-static lv_obj_t *s_amountLabel = nullptr;
+static lv_obj_t *s_pinBoxes[4]   = {nullptr, nullptr, nullptr, nullptr};
+static lv_obj_t *s_pinDigits[4]  = {nullptr, nullptr, nullptr, nullptr};
+static lv_obj_t *s_pinProgress   = nullptr;
+static lv_obj_t *s_amountLabel   = nullptr;
 static AmountPurpose s_amountPurpose = AMOUNT_DEPOSIT;
 
 static void _go_home(void *)           { draw_home(); }
@@ -126,13 +128,28 @@ static void draw_home() {
 /* ================================================================
    PIN SCREEN
    ================================================================ */
-static void refreshPinLabel() {
-    if (!s_pinLabel) return;
-    char buf[16] = "PIN: ";
+static void refreshPinDisplay() {
     int n = strlen(g_bank.enteredPin);
-    for (int i = 0; i < 4; i++) buf[5 + i] = (i < n) ? '*' : '_';
-    buf[9] = '\0';
-    lv_label_set_text(s_pinLabel, buf);
+    for (int i = 0; i < 4; i++) {
+        if (!s_pinBoxes[i] || !s_pinDigits[i]) continue;
+        bool filled = i < n;
+        bool active = (i == n) && (n < 4);
+
+        lv_obj_set_style_bg_color(s_pinBoxes[i], filled ? UI_C_PANEL : UI_C_BG, 0);
+        lv_obj_set_style_bg_opa(s_pinBoxes[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(s_pinBoxes[i],
+                                      filled ? UI_C_GOOD : (active ? UI_C_WARN : UI_C_DIM), 0);
+        lv_obj_set_style_border_width(s_pinBoxes[i], active ? 4 : 2, 0);
+
+        lv_label_set_text(s_pinDigits[i], filled ? "*" : "-");
+        lv_obj_set_style_text_color(s_pinDigits[i],
+                                    filled ? UI_C_GOOD : (active ? UI_C_WARN : UI_C_DIM), 0);
+    }
+    if (s_pinProgress) {
+        char buf[24];
+        snprintf(buf, sizeof(buf), "%d of 4 digits entered", n);
+        lv_label_set_text(s_pinProgress, buf);
+    }
 }
 
 static void on_pin_key(lv_event_t *e) {
@@ -140,12 +157,18 @@ static void on_pin_key(lv_event_t *e) {
     if (!key) return;
 
     if (key[0] == '*') {
-        lv_async_call(_go_home, NULL);
+        int n = strlen(g_bank.enteredPin);
+        if (n > 0) {
+            g_bank.enteredPin[n - 1] = '\0';
+            refreshPinDisplay();
+        } else {
+            lv_async_call(_go_home, NULL);
+        }
         return;
     }
     if (key[0] == '#') {
         if (strlen(g_bank.enteredPin) != 4) {
-            draw_message("PIN INCOMPLETE", "Enter 4 digits", "", true, MSG_RET_PIN);
+            draw_message("PIN INCOMPLETE", "Enter all 4 digits", "Then press #", true, MSG_RET_PIN);
             return;
         }
 
@@ -166,6 +189,8 @@ static void on_pin_key(lv_event_t *e) {
             }
         } else {
             MsgReturn ret = (g_bank.currentScreen == SCR_ADMIN_PIN) ? MSG_RET_ADMIN_PIN : MSG_RET_PIN;
+            memset(g_bank.enteredPin, 0, sizeof(g_bank.enteredPin));
+            refreshPinDisplay();
             draw_message("WRONG PIN", "Try again", "", true, ret);
         }
         return;
@@ -174,7 +199,7 @@ static void on_pin_key(lv_event_t *e) {
         int n = strlen(g_bank.enteredPin);
         g_bank.enteredPin[n] = key[0];
         g_bank.enteredPin[n + 1] = '\0';
-        refreshPinLabel();
+        refreshPinDisplay();
     }
 }
 
@@ -186,13 +211,81 @@ static void draw_pin(bool isAdmin) {
     lv_obj_t *scr = uiPlatformMakeScreen(isAdmin ? "ADMIN PIN" : "ENTER PIN",
                                          isAdmin ? UI_C_BAD : UI_C_ACCENT);
 
-    s_pinLabel = lv_label_create(scr);
-    lv_label_set_text(s_pinLabel, "PIN: _ _ _ _");
-    lv_obj_set_style_text_color(s_pinLabel, UI_C_TEXT, 0);
-    lv_obj_set_style_text_font(s_pinLabel, UI_F28, 0);
-    lv_obj_align(s_pinLabel, LV_ALIGN_TOP_LEFT, UI_BTN_X, UI_HDR_H + 20);
+    int y = UI_HDR_H + 10;
 
-    uiPlatformBuildKeypad(scr, UI_HDR_H + 80, on_pin_key);
+    if (!isAdmin && g_bank.selectedAccount >= 0) {
+        char who[32];
+        snprintf(who, sizeof(who), "%s  %s",
+                 g_bank.accounts[g_bank.selectedAccount].avatar,
+                 g_bank.accounts[g_bank.selectedAccount].name);
+        lv_obj_t *whoLbl = lv_label_create(scr);
+        lv_label_set_text(whoLbl, who);
+        lv_obj_set_style_text_color(whoLbl, UI_C_CYAN, 0);
+        lv_obj_set_style_text_font(whoLbl, UI_F24, 0);
+        lv_obj_set_pos(whoLbl, UI_BTN_X, y);
+        y += 34;
+    }
+
+    lv_obj_t *hint = lv_label_create(scr);
+    lv_label_set_text(hint, "ENTER YOUR 4-DIGIT PIN");
+    lv_obj_set_style_text_color(hint, UI_C_TEXT, 0);
+    lv_obj_set_style_text_font(hint, UI_F20, 0);
+    lv_obj_set_pos(hint, UI_BTN_X, y);
+    y += 36;
+
+    lv_obj_t *pinPanel = lv_obj_create(scr);
+    lv_obj_set_size(pinPanel, UI_BTN_W, 118);
+    lv_obj_set_pos(pinPanel, UI_BTN_X, y);
+    lv_obj_remove_flag(pinPanel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(pinPanel, UI_C_PANEL, 0);
+    lv_obj_set_style_bg_opa(pinPanel, LV_OPA_60, 0);
+    lv_obj_set_style_border_color(pinPanel, UI_C_DIM, 0);
+    lv_obj_set_style_border_width(pinPanel, 2, 0);
+    lv_obj_set_style_radius(pinPanel, 8, 0);
+    lv_obj_set_style_pad_all(pinPanel, 0, 0);
+
+    const int boxW = 88;
+    const int boxH = 88;
+    const int boxGap = 10;
+    const int rowW = 4 * boxW + 3 * boxGap;
+    const int panelPadX = (UI_BTN_W - rowW) / 2;
+
+    for (int i = 0; i < 4; i++) {
+        int bx = panelPadX + i * (boxW + boxGap);
+        s_pinBoxes[i] = lv_obj_create(pinPanel);
+        lv_obj_set_size(s_pinBoxes[i], boxW, boxH);
+        lv_obj_set_pos(s_pinBoxes[i], bx, 14);
+        lv_obj_remove_flag(s_pinBoxes[i], LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_bg_color(s_pinBoxes[i], UI_C_BG, 0);
+        lv_obj_set_style_bg_opa(s_pinBoxes[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(s_pinBoxes[i], UI_C_DIM, 0);
+        lv_obj_set_style_border_width(s_pinBoxes[i], 2, 0);
+        lv_obj_set_style_radius(s_pinBoxes[i], 8, 0);
+
+        s_pinDigits[i] = lv_label_create(s_pinBoxes[i]);
+        lv_label_set_text(s_pinDigits[i], "-");
+        lv_obj_set_style_text_color(s_pinDigits[i], UI_C_DIM, 0);
+        lv_obj_set_style_text_font(s_pinDigits[i], UI_F36, 0);
+        lv_obj_center(s_pinDigits[i]);
+    }
+
+    y += 130;
+    s_pinProgress = lv_label_create(scr);
+    lv_label_set_text(s_pinProgress, "0 of 4 digits entered");
+    lv_obj_set_style_text_color(s_pinProgress, UI_C_WARN, 0);
+    lv_obj_set_style_text_font(s_pinProgress, UI_F20, 0);
+    lv_obj_align(s_pinProgress, LV_ALIGN_TOP_MID, 0, y);
+
+    y += 36;
+    uiPlatformBuildKeypad(scr, y, on_pin_key);
+
+    lv_obj_t *keyHint = lv_label_create(scr);
+    lv_label_set_text(keyHint, "* Delete digit   # Submit PIN");
+    lv_obj_set_style_text_color(keyHint, UI_C_TEXT, 0);
+    lv_obj_set_style_text_font(keyHint, UI_F16, 0);
+    lv_obj_set_pos(keyHint, UI_BTN_X, y + 4 * (UI_KEY_H + UI_KEY_GAP) + 8);
+
+    refreshPinDisplay();
     uiPlatformLoadScreen(scr);
 }
 

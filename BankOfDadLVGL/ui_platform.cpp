@@ -81,7 +81,7 @@ void uiPlatformBuildKeypad(lv_obj_t *parent, int yTop, lv_event_cb_t cb) {
         uiPlatformMakeBtn(parent, kx, ky, UI_KEY_W, UI_KEY_H, keys[i], UI_C_PANEL, cb, (void *)keys[i]);
     }
     lv_obj_t *hint = lv_label_create(parent);
-    lv_label_set_text(hint, "* Back / Clear     # Enter");
+    lv_label_set_text(hint, "* Delete   # Enter");
     lv_obj_set_style_text_color(hint, UI_C_DIM, 0);
     lv_obj_set_style_text_font(hint, UI_F14, 0);
     lv_obj_set_pos(hint, UI_BTN_X, yTop + 4 * (UI_KEY_H + UI_KEY_GAP) + 4);
