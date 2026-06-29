@@ -200,6 +200,24 @@ Change pins in `BankOfDadLVGL/storage.h` if your board uses different SD wiring.
 
 ---
 
+### One-command install (Windows)
+
+From your cloned repo folder in **PowerShell**:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install-arduino-sketch.ps1
+```
+
+This copies all fixed `BankOfDadLVGL` files to `Documents\Arduino\BankOfDadLVGL` and `lv_conf.h` to `Documents\Arduino\libraries\`. Then open `BankOfDadLVGL.ino` in Arduino IDE and compile.
+
+To install over your Desktop copy instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install-arduino-sketch.ps1 -SketchDir "C:\Users\tjpro\Desktop\bankofdad\bank-of-dad-cursor-bank-of-dad-v22-dcaf\bank-of-dad-cursor-bank-of-dad-v22-dcaf\BankOfDadLVGL"
+```
+
+---
+
 ### LVGL configuration (required — fixes `lv_animimage` / `LV_USE_IMAGE` errors)
 
 Arduino compiles the **lvgl library** separately from your sketch. You need `lv_conf.h` in **two** places:

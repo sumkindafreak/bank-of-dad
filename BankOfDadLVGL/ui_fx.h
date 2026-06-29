@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include "lv_conf.h"
 #include <lvgl.h>
 
