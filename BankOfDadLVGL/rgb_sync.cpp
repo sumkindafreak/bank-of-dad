@@ -1,3 +1,5 @@
+#include <stdint.h>
+#include <Arduino.h>
 #include "rgb_sync.h"
 
 static bool s_child = false;

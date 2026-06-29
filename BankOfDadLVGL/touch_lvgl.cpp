@@ -1,23 +1,12 @@
+/* touch_lvgl.cpp v2.2.1 — uses points[0], not tp[0] */
 #include "touch_lvgl.h"
-#include "lvgl_port.h"   /* SCREEN_W, SCREEN_H */
+#include "lvgl_port.h"
 
 static TAMC_GT911   *s_dev   = nullptr;
 static int           s_dispW = 480;
 static int           s_dispH = 800;
 static TouchRotation s_rot   = TOUCH_ROT_CW_90;
 
-/* -----------------------------------------------------------------------
-   Coordinate transform for TOUCH_ROT_CW_90 (90° CW):
-     Physical GT911 gives (px, py) in [0..SCREEN_W-1, 0..SCREEN_H-1]
-                                   = [0..799, 0..479]
-     After 90° CW to portrait (DISP_W=480, DISP_H=800):
-       logical_x = py                     (0..479 → 0..479)
-       logical_y = (SCREEN_W - 1) - px    (0..799 → 0..799, inverted)
-
-   If touches feel mirrored on your specific panel:
-     — swap x/y or negate: adjust the two lines marked CALIBRATE below.
-     — print raw points[0].x / points[0].y to Serial and correlate with corners.
-   ----------------------------------------------------------------------- */
 static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
     (void)indev;
     if (!s_dev) return;
@@ -31,8 +20,8 @@ static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
         int lx, ly;
         switch (s_rot) {
             case TOUCH_ROT_CW_90:
-                lx = py;                  /* CALIBRATE if needed */
-                ly = (SCREEN_W - 1) - px; /* CALIBRATE if needed */
+                lx = py;
+                ly = (SCREEN_W - 1) - px;
                 break;
             case TOUCH_ROT_CCW_90:
                 lx = (SCREEN_H - 1) - py;

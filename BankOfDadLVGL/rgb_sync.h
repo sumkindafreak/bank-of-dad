@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <Arduino.h>
 
 void rgbSyncSetChildActive(bool on);
