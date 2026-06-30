@@ -1,10 +1,9 @@
 #pragma once
-/* touch_lvgl.h v2.2.1 — must use TOUCH_ROT_* (NOT ROTATION_RIGHT) */
+/* Header only — implementation is in BankOfDadLVGL.ino */
 
 #include "lv_conf.h"
 #include <lvgl.h>
 
-/* Define BEFORE TAMC_GT911.h — that library macros ROTATION_RIGHT etc. */
 typedef enum {
     TOUCH_ROT_NONE   = 0,
     TOUCH_ROT_CW_90  = 1,

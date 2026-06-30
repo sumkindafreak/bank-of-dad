@@ -33,6 +33,15 @@ Write-Host ""
 New-Item -ItemType Directory -Force -Path $SketchDir | Out-Null
 Copy-Item -Path "$SrcSketch\*" -Destination $SketchDir -Recurse -Force
 
+# Remove legacy cpp files — code now lives in BankOfDadLVGL.ino
+foreach ($legacy in @("touch_lvgl.cpp", "rgb_sync.cpp")) {
+    $legacyPath = Join-Path $SketchDir $legacy
+    if (Test-Path $legacyPath) {
+        Remove-Item $legacyPath -Force
+        Write-Host "Removed legacy $legacy (now in BankOfDadLVGL.ino)" -ForegroundColor Yellow
+    }
+}
+
 if (Test-Path $SrcLvConf) {
     New-Item -ItemType Directory -Force -Path $LibrariesDir | Out-Null
     Copy-Item -Path $SrcLvConf -Destination (Join-Path $LibrariesDir "lv_conf.h") -Force
