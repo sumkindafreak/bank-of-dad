@@ -8,8 +8,8 @@
  *   BankOfDadLVGL/lv_conf.h
  *   Documents/Arduino/libraries/lv_conf.h   (see arduino-libraries/lv_conf.h)
  *
- * If you still have touch_lvgl.cpp or rgb_sync.cpp in this folder, DELETE them.
  * Touch + RGB sync code lives in this .ino file (build v2.2.2).
+ * Run FIX-BUILD-NOW.bat in this folder if compile still fails.
  */
 
 #define BANK_OF_DAD_BUILD 222
@@ -22,8 +22,17 @@
 #include <Arduino_GFX_Library.h>
 #include "app.h"
 #include "lvgl_port.h"
-#include "touch_lvgl.h"
 #include "rgb_sync.h"
+
+/* Touch enum BEFORE TAMC_GT911.h (that library defines ROTATION_RIGHT macros) */
+typedef enum {
+    TOUCH_ROT_NONE   = 0,
+    TOUCH_ROT_CW_90  = 1,
+    TOUCH_ROT_180    = 2,
+    TOUCH_ROT_CCW_90 = 3
+} TouchRotation;
+
+#include <TAMC_GT911.h>
 
 /* ================================================================
    RGB SYNC (was rgb_sync.cpp)
