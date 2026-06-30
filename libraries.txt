@@ -1,0 +1,13 @@
+# Arduino Library Manager names
+
+# CYD sketch (BankOfDad/)
+Adafruit GFX Library
+Adafruit ILI9341
+XPT2046_Touchscreen
+
+# LVGL sketch (BankOfDadLVGL/)
+Arduino_GFX_Library
+TAMC_GT911
+lvgl
+
+# SD card — built into ESP32 / ESP32-S3 Arduino core (no install needed)
