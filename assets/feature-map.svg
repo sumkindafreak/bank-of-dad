@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <rect width="1200" height="900" fill="#07111f"/>
+  <text x="600" y="85" fill="#42f58d" font-family="monospace" font-size="56" font-weight="800" text-anchor="middle">BANK OF DAD FEATURE MAP</text>
+  <rect x="420" y="145" width="360" height="95" rx="24" fill="#101827" stroke="#f5c542" stroke-width="4"/>
+  <text x="600" y="185" text-anchor="middle" fill="#f5c542" font-family="monospace" font-size="30" font-weight="800">Child Account</text>
+  <text x="600" y="220" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Balance - XP - Goal</text>
+  <rect x="80" y="330" width="285" height="120" rx="24" fill="#101827" stroke="#42f58d" stroke-width="4"/>
+  <text x="222" y="372" text-anchor="middle" fill="#42f58d" font-family="monospace" font-size="28" font-weight="800">Chores</text>
+  <text x="222" y="410" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Rewards and XP</text>
+  <rect x="457" y="330" width="285" height="120" rx="24" fill="#101827" stroke="#42f58d" stroke-width="4"/>
+  <text x="600" y="372" text-anchor="middle" fill="#42f58d" font-family="monospace" font-size="28" font-weight="800">Approval Queue</text>
+  <text x="600" y="410" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Parent checks first</text>
+  <rect x="835" y="330" width="285" height="120" rx="24" fill="#101827" stroke="#42f58d" stroke-width="4"/>
+  <text x="978" y="372" text-anchor="middle" fill="#42f58d" font-family="monospace" font-size="28" font-weight="800">Reward Shop</text>
+  <text x="978" y="410" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Spend or save</text>
+  <rect x="80" y="560" width="285" height="120" rx="24" fill="#101827" stroke="#f25cff" stroke-width="4"/>
+  <text x="222" y="602" text-anchor="middle" fill="#f25cff" font-family="monospace" font-size="28" font-weight="800">Badges</text>
+  <text x="222" y="640" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Achievements</text>
+  <rect x="457" y="560" width="285" height="120" rx="24" fill="#101827" stroke="#f25cff" stroke-width="4"/>
+  <text x="600" y="602" text-anchor="middle" fill="#f25cff" font-family="monospace" font-size="28" font-weight="800">Streaks</text>
+  <text x="600" y="640" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Daily progress</text>
+  <rect x="835" y="560" width="285" height="120" rx="24" fill="#101827" stroke="#f25cff" stroke-width="4"/>
+  <text x="978" y="602" text-anchor="middle" fill="#f25cff" font-family="monospace" font-size="28" font-weight="800">Editor Mode</text>
+  <text x="978" y="640" text-anchor="middle" fill="#e8f7ff" font-family="monospace" font-size="24">Family control</text>
+  <line x1="600" y1="240" x2="222" y2="330" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <line x1="600" y1="240" x2="600" y2="330" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <line x1="600" y1="240" x2="978" y2="330" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <line x1="600" y1="450" x2="222" y2="560" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <line x1="600" y1="450" x2="600" y2="560" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <line x1="600" y1="450" x2="978" y2="560" stroke="#f5c542" stroke-width="5" opacity="0.75"/>
+  <text x="600" y="790" fill="#f5c542" font-family="monospace" font-size="30" text-anchor="middle">Earn - Save - Level Up - Redeem</text>
+</svg>
