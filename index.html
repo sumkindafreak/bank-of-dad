@@ -14,6 +14,7 @@
       <p class="eyebrow">Retro Family Economy System</p>
       <h1>Bank of Dad</h1>
     </div>
+    <button id="editModeBtn" class="small">Dad Editor</button>
     <button id="resetDemoBtn" class="danger small">Reset Demo</button>
   </header>
 
@@ -30,6 +31,32 @@
 
     <section class="panel dashboard-panel">
       <div id="childDashboard"></div>
+    </section>
+
+    <section id="editorPanel" class="panel editor-panel hidden">
+      <h2>Dad Editor</h2>
+      <p class="editor-note">Edit chores, shop prices, and child details. Changes save automatically in this browser.</p>
+
+      <div class="editor-section">
+        <div class="editor-header">
+          <h3>Chores</h3>
+          <button id="addChoreBtn" type="button">Add Chore</button>
+        </div>
+        <div id="choreEditor" class="editor-list"></div>
+      </div>
+
+      <div class="editor-section">
+        <div class="editor-header">
+          <h3>Prize Shop</h3>
+          <button id="addShopBtn" type="button">Add Reward</button>
+        </div>
+        <div id="shopEditor" class="editor-list"></div>
+      </div>
+
+      <div class="editor-section">
+        <h3>Children</h3>
+        <div id="childEditor" class="editor-list"></div>
+      </div>
     </section>
 
     <section class="panel actions-panel">

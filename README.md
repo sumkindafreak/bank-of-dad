@@ -13,6 +13,7 @@ A retro-style family chore economy system where children can earn pocket money, 
 - 2% savings interest button
 - Prize shop
 - Kindness and no-reminder bonuses
+- Dad Editor mode for chores, shop prices, and child accounts
 - Local browser storage using `localStorage`
 - Retro arcade / 80s computer styling
 

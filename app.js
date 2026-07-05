@@ -68,6 +68,13 @@ const rewardShop = document.getElementById("rewardShop");
 const addChildForm = document.getElementById("addChildForm");
 const newChildName = document.getElementById("newChildName");
 const toast = document.getElementById("toast");
+const editModeBtn = document.getElementById("editModeBtn");
+const editorPanel = document.getElementById("editorPanel");
+const choreEditor = document.getElementById("choreEditor");
+const shopEditor = document.getElementById("shopEditor");
+const childEditor = document.getElementById("childEditor");
+
+let editMode = false;
 
 function createChild(name) {
   return {
@@ -109,12 +116,239 @@ function money(pence) {
   return `£${(pence / 100).toFixed(2)}`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 function getSelectedChild() {
   return state.children.find(child => child.id === selectedChildId) || state.children[0];
 }
 
 function getLevel(xp) {
   return Math.min(Math.floor(xp / 150), levelNames.length - 1);
+}
+
+function penceFromPounds(value) {
+  const pounds = Number(value);
+  if (Number.isNaN(pounds) || pounds < 0) return null;
+  return Math.round(pounds * 100);
+}
+
+function poundsFromInput(value) {
+  return (Number(value) / 100).toFixed(2);
+}
+
+function updateChore(choreId, field, value) {
+  const chore = state.chores.find(item => item.id === choreId);
+  if (!chore) return;
+
+  if (field === "name") chore.name = value.trim().slice(0, 60) || chore.name;
+  if (field === "category") chore.category = value.trim().slice(0, 24) || chore.category;
+  if (field === "rewardPence") {
+    const pence = penceFromPounds(value);
+    if (pence !== null) chore.rewardPence = Math.min(pence, 450);
+  }
+  if (field === "xp") {
+    const xp = Number(value);
+    if (!Number.isNaN(xp) && xp >= 0) chore.xp = Math.round(xp);
+  }
+
+  saveState();
+  render();
+}
+
+function addChore() {
+  state.chores.push({
+    id: crypto.randomUUID(),
+    name: "New chore",
+    rewardPence: 50,
+    xp: 10,
+    category: "Home"
+  });
+  saveState();
+  render();
+  showToast("Chore added — edit the details below");
+}
+
+function removeChore(choreId) {
+  state.chores = state.chores.filter(item => item.id !== choreId);
+  state.approvals = state.approvals.filter(item => item.choreId !== choreId);
+  saveState();
+  render();
+  showToast("Chore removed");
+}
+
+function updateShopItem(itemId, field, value) {
+  const item = state.shop.find(reward => reward.id === itemId);
+  if (!item) return;
+
+  if (field === "name") item.name = value.trim().slice(0, 60) || item.name;
+  if (field === "costPence") {
+    const pence = penceFromPounds(value);
+    if (pence !== null) item.costPence = pence;
+  }
+
+  saveState();
+  render();
+}
+
+function addShopItem() {
+  state.shop.push({
+    id: crypto.randomUUID(),
+    name: "New reward",
+    costPence: 500
+  });
+  saveState();
+  render();
+  showToast("Shop reward added");
+}
+
+function removeShopItem(itemId) {
+  state.shop = state.shop.filter(item => item.id !== itemId);
+  saveState();
+  render();
+  showToast("Shop reward removed");
+}
+
+function updateChild(childId, field, value) {
+  const child = state.children.find(item => item.id === childId);
+  if (!child) return;
+
+  if (field === "name") child.name = value.trim().slice(0, 20) || child.name;
+  if (field === "balancePence") {
+    const pence = penceFromPounds(value);
+    if (pence !== null) child.balancePence = pence;
+  }
+  if (field === "goalName") child.savingsGoal.name = value.trim().slice(0, 40) || child.savingsGoal.name;
+  if (field === "goalTargetPence") {
+    const pence = penceFromPounds(value);
+    if (pence !== null) child.savingsGoal.targetPence = pence;
+  }
+
+  saveState();
+  render();
+}
+
+function removeChild(childId) {
+  if (state.children.length <= 1) {
+    showToast("Keep at least one child account");
+    return;
+  }
+
+  state.children = state.children.filter(item => item.id !== childId);
+  state.approvals = state.approvals.filter(item => item.childId !== childId);
+  if (selectedChildId === childId) selectedChildId = state.children[0]?.id;
+  saveState();
+  render();
+  showToast("Child removed");
+}
+
+function renderEditor() {
+  if (!editMode) {
+    editorPanel.classList.add("hidden");
+    return;
+  }
+
+  editorPanel.classList.remove("hidden");
+
+  choreEditor.innerHTML = "";
+  state.chores.forEach(chore => {
+    const card = document.createElement("div");
+    card.className = "editor-card";
+    card.innerHTML = `
+      <div class="editor-grid">
+        <div>
+          <label>Name</label>
+          <input type="text" value="${escapeHtml(chore.name)}" maxlength="60">
+        </div>
+        <div>
+          <label>Category</label>
+          <input type="text" value="${escapeHtml(chore.category)}" maxlength="24">
+        </div>
+        <div>
+          <label>Reward (£)</label>
+          <input type="number" min="0" max="4.5" step="0.01" value="${poundsFromInput(chore.rewardPence)}">
+        </div>
+        <div>
+          <label>XP</label>
+          <input type="number" min="0" step="1" value="${chore.xp}">
+        </div>
+      </div>
+      <button type="button" class="danger">Remove Chore</button>
+    `;
+
+    const [nameInput, categoryInput, rewardInput, xpInput] = card.querySelectorAll("input");
+    nameInput.addEventListener("change", () => updateChore(chore.id, "name", nameInput.value));
+    categoryInput.addEventListener("change", () => updateChore(chore.id, "category", categoryInput.value));
+    rewardInput.addEventListener("change", () => updateChore(chore.id, "rewardPence", rewardInput.value));
+    xpInput.addEventListener("change", () => updateChore(chore.id, "xp", xpInput.value));
+    card.querySelector("button").addEventListener("click", () => removeChore(chore.id));
+    choreEditor.appendChild(card);
+  });
+
+  shopEditor.innerHTML = "";
+  state.shop.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "editor-card";
+    card.innerHTML = `
+      <div class="editor-grid">
+        <div>
+          <label>Reward name</label>
+          <input type="text" value="${escapeHtml(item.name)}" maxlength="60">
+        </div>
+        <div>
+          <label>Price (£)</label>
+          <input type="number" min="0" step="0.01" value="${poundsFromInput(item.costPence)}">
+        </div>
+      </div>
+      <button type="button" class="danger">Remove Reward</button>
+    `;
+
+    const [nameInput, costInput] = card.querySelectorAll("input");
+    nameInput.addEventListener("change", () => updateShopItem(item.id, "name", nameInput.value));
+    costInput.addEventListener("change", () => updateShopItem(item.id, "costPence", costInput.value));
+    card.querySelector("button").addEventListener("click", () => removeShopItem(item.id));
+    shopEditor.appendChild(card);
+  });
+
+  childEditor.innerHTML = "";
+  state.children.forEach(child => {
+    const card = document.createElement("div");
+    card.className = "editor-card";
+    card.innerHTML = `
+      <div class="editor-grid">
+        <div>
+          <label>Name</label>
+          <input type="text" value="${escapeHtml(child.name)}" maxlength="20">
+        </div>
+        <div>
+          <label>Balance (£)</label>
+          <input type="number" min="0" step="0.01" value="${poundsFromInput(child.balancePence)}">
+        </div>
+        <div>
+          <label>Savings goal name</label>
+          <input type="text" value="${escapeHtml(child.savingsGoal.name)}" maxlength="40">
+        </div>
+        <div>
+          <label>Goal target (£)</label>
+          <input type="number" min="0" step="0.01" value="${poundsFromInput(child.savingsGoal.targetPence)}">
+        </div>
+      </div>
+      <button type="button" class="danger">Remove Child</button>
+    `;
+
+    const [nameInput, balanceInput, goalNameInput, goalTargetInput] = card.querySelectorAll("input");
+    nameInput.addEventListener("change", () => updateChild(child.id, "name", nameInput.value));
+    balanceInput.addEventListener("change", () => updateChild(child.id, "balancePence", balanceInput.value));
+    goalNameInput.addEventListener("change", () => updateChild(child.id, "goalName", goalNameInput.value));
+    goalTargetInput.addEventListener("change", () => updateChild(child.id, "goalTargetPence", goalTargetInput.value));
+    card.querySelector("button").addEventListener("click", () => removeChild(child.id));
+    childEditor.appendChild(card);
+  });
 }
 
 function showToast(message) {
@@ -395,6 +629,7 @@ function render() {
   renderChores();
   renderApprovals();
   renderShop();
+  renderEditor();
 }
 
 addChildForm.addEventListener("submit", event => {
@@ -412,6 +647,16 @@ document.getElementById("bonus50Btn").addEventListener("click", () => awardBonus
 document.getElementById("bonus100Btn").addEventListener("click", () => awardBonus(100, "No reminders needed"));
 document.getElementById("interestBtn").addEventListener("click", applyInterest);
 document.getElementById("streakBtn").addEventListener("click", addStreakDay);
+document.getElementById("addChoreBtn").addEventListener("click", addChore);
+document.getElementById("addShopBtn").addEventListener("click", addShopItem);
+
+editModeBtn.addEventListener("click", () => {
+  editMode = !editMode;
+  editModeBtn.classList.toggle("active", editMode);
+  editModeBtn.textContent = editMode ? "Close Editor" : "Dad Editor";
+  render();
+  showToast(editMode ? "Editor open — change values and tap away to save" : "Editor closed");
+});
 
 document.getElementById("resetDemoBtn").addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);

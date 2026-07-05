@@ -44,6 +44,19 @@ Chore chores[CHORE_COUNT] = {
     {"Deep Kitchen", 450, -1},
 };
 
+Reward rewards[REWARD_COUNT] = {
+    {"Chocolate Bar", 200},
+    {"Pick Tonight's Film", 500},
+    {"Stay Up 30 Minutes", 750},
+    {"McDonald's Treat", 1500},
+    {"Cinema Trip", 3000},
+    {"Video Game Fund", 5000},
+    {"Ice Cream Trip", 300},
+    {"Choose Takeaway", 2000},
+    {"Book Voucher", 800},
+    {"Theme Park Fund", 10000},
+};
+
 String historyLog[ACCOUNT_COUNT][HISTORY_COUNT];
 int historyIndex[ACCOUNT_COUNT] = {0};
 Notification notifications[NOTIFY_COUNT];
@@ -67,16 +80,61 @@ static const long DEFAULT_CHORE_REWARDS[CHORE_COUNT] = {
     125, 150, 150, 200, 200, 200, 250, 300, 350, 400, 450,
 };
 
-static String buildPageHeader() {
+static const char *DEFAULT_REWARD_TITLES[REWARD_COUNT] = {
+    "Chocolate Bar", "Pick Tonight's Film", "Stay Up 30 Minutes", "McDonald's Treat",
+    "Cinema Trip", "Video Game Fund", "Ice Cream Trip", "Choose Takeaway",
+    "Book Voucher", "Theme Park Fund",
+};
+
+static const long DEFAULT_REWARD_COSTS[REWARD_COUNT] = {
+    200, 500, 750, 1500, 3000, 5000, 300, 2000, 800, 10000,
+};
+
+static String htmlEscape(const char *text) {
+  String out;
+  if (!text) return out;
+  for (const char *p = text; *p; p++) {
+    if (*p == '&') out += "&amp;";
+    else if (*p == '"') out += "&quot;";
+    else if (*p == '<') out += "&lt;";
+    else if (*p == '>') out += "&gt;";
+    else out += *p;
+  }
+  return out;
+}
+
+static String poundsInput(long pennies) {
+  char buf[12];
+  dtostrf(pennies / 100.0f, 1, 2, buf);
+  return String(buf);
+}
+
+static long parsePounds(const String &raw, long maxPence = 999999L) {
+  float pounds = raw.toFloat();
+  if (pounds < 0.0f) return -1;
+  long pennies = (long)(pounds * 100.0f + 0.5f);
+  if (pennies > maxPence) return -1;
+  return pennies;
+}
+
+static String buildPageHeader(const char *active) {
+  auto navLink = [&](const char *href, const char *label) {
+    bool isActive = active && strcmp(active, href) == 0;
+    String cls = isActive ? "btn active" : "btn secondary";
+    return String("<a class='") + cls + "' href='" + href + "'>" + label + "</a>";
+  };
+
   return String(
       "<!DOCTYPE html><html><head>"
       "<meta name='viewport' content='width=device-width,initial-scale=1'>"
       "<title>Bank of Dad</title><style>"
-      "body{font-family:sans-serif;max-width:520px;margin:0 auto;padding:16px;"
+      "body{font-family:sans-serif;max-width:560px;margin:0 auto;padding:16px;"
       "background:#111;color:#eee}"
       "h1{color:#e74c3c;margin:0 0 2px}"
+      "h2{color:#fff;font-size:1.1em;margin:0 0 10px}"
       "p.sub{color:#888;margin:0 0 16px;font-size:.9em}"
       ".panel{background:#222;padding:12px;margin:8px 0;border-radius:8px}"
+      ".item{background:#1a1a1a;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #333}"
       "label{display:block;margin-bottom:4px;font-size:.85em;color:#aaa}"
       "input[type=text],input[type=password],input[type=number]{"
       "width:100%;box-sizing:border-box;padding:8px;background:#333;color:#fff;"
@@ -86,17 +144,25 @@ static String buildPageHeader() {
       "text-decoration:none;margin:4px 4px 4px 0}"
       "button:hover,.btn:hover{background:#c0392b}"
       ".btn.secondary{background:#444}.btn.secondary:hover{background:#555}"
+      ".btn.active{background:#27ae60}.btn.good{background:#27ae60}"
+      ".btn.good:hover{background:#219653}"
+      ".btn.warn{background:#555}.btn.danger{background:#922b21}"
       ".ok{padding:10px;background:#27ae60;border-radius:6px;margin-bottom:12px}"
       ".warn{font-size:.85em;color:#e67e22}"
-      ".nav{margin-bottom:12px}"
-      ".chore{background:#222;padding:12px;margin:8px 0;border-radius:8px}"
+      ".nav{margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px}"
+      ".scroll{max-height:70vh;overflow-y:auto;padding-right:4px}"
+      ".row{display:grid;grid-template-columns:1fr 1fr;gap:8px}"
+      ".actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}"
       "</style></head><body>"
       "<h1>Bank of Dad</h1>"
       "<p class='sub'>v") +
          PLATFORM_VERSION + " — Dad admin panel</p>"
-                          "<div class='nav'>"
-                          "<a class='btn' href='/'>Chores</a>"
-                          "<a class='btn secondary' href='/wifi'>WiFi &amp; OTA</a>"
+                          "<div class='nav'>" +
+                          navLink("/", "Chores") +
+                          navLink("/rewards", "Shop") +
+                          navLink("/accounts", "Accounts") +
+                          navLink("/approvals", "Approvals") +
+                          navLink("/wifi", "WiFi") +
                           "</div>";
 }
 
@@ -113,37 +179,133 @@ static String buildStatusPanel() {
 }
 
 static String buildChorePage(bool saved) {
-  String html = buildPageHeader();
+  String html = buildPageHeader("/");
   html += buildStatusPanel();
 
   if (saved) html += "<div class='ok'>&#10003; Chore changes saved</div>";
 
-  html += "<form method='POST' action='/update'>";
+  html += "<form method='POST' action='/update'><div class='scroll'>";
+  html += "<p class='warn'>Edit chore names and rewards (max £4.50 each). Changes apply on the device immediately.</p>";
 
   for (int i = 0; i < CHORE_COUNT; i++) {
-    char rewardBuf[12];
-    dtostrf(chores[i].reward / 100.0f, 1, 2, rewardBuf);
-
     String pending;
     if (chores[i].pendingChild >= 0) {
       pending = "<p class='warn'>&#9888; Pending approval for " +
-                String(accounts[chores[i].pendingChild].name) + "</p>";
+                htmlEscape(accounts[chores[i].pendingChild].name) + "</p>";
     }
 
-    html += "<div class='chore'>";
+    html += "<div class='item'>";
     html += "<label>Chore " + String(i + 1) + " — Name</label>";
     html += "<input type='text' name='t" + String(i) + "' value=\"";
-    html += String(chores[i].title);
+    html += htmlEscape(chores[i].title);
     html += "\" maxlength='31' required>";
     html += "<label>Reward (GBP)</label>";
     html += "<input type='number' name='r" + String(i) + "' step='0.01' min='0' max='4.50' value='";
-    html += String(rewardBuf);
+    html += poundsInput(chores[i].reward);
     html += "'>";
     html += pending;
     html += "</div>";
   }
 
-  html += "<button type='submit'>Save Chores</button></form></body></html>";
+  html += "</div><button type='submit'>Save All Chores</button></form></body></html>";
+  return html;
+}
+
+static String buildRewardsPage(bool saved) {
+  String html = buildPageHeader("/rewards");
+  html += buildStatusPanel();
+  if (saved) html += "<div class='ok'>&#10003; Shop rewards saved</div>";
+
+  html += "<form method='POST' action='/rewards/update'><div class='scroll'>";
+  html += "<p class='warn'>Edit prize shop items and prices. Children buy these from their balance on the device.</p>";
+
+  for (int i = 0; i < REWARD_COUNT; i++) {
+    html += "<div class='item'>";
+    html += "<label>Reward " + String(i + 1) + " — Name</label>";
+    html += "<input type='text' name='n" + String(i) + "' value=\"";
+    html += htmlEscape(rewards[i].title);
+    html += "\" maxlength='31' required>";
+    html += "<label>Price (GBP)</label>";
+    html += "<input type='number' name='c" + String(i) + "' step='0.01' min='0' max='999.99' value='";
+    html += poundsInput(rewards[i].cost);
+    html += "'>";
+    html += "</div>";
+  }
+
+  html += "</div><button type='submit'>Save All Rewards</button></form></body></html>";
+  return html;
+}
+
+static String buildAccountsPage(bool saved) {
+  String html = buildPageHeader("/accounts");
+  html += buildStatusPanel();
+  if (saved) html += "<div class='ok'>&#10003; Account changes saved</div>";
+
+  html += "<form method='POST' action='/accounts/update'><div class='scroll'>";
+  html += "<p class='warn'>Edit child names, PINs, balances and savings goals.</p>";
+
+  for (int i = 0; i < ACCOUNT_COUNT; i++) {
+    html += "<div class='item'>";
+    html += "<h2>" + String(accounts[i].name) + "</h2>";
+    html += "<label>Name</label>";
+    html += "<input type='text' name='n" + String(i) + "' value=\"";
+    html += htmlEscape(accounts[i].name);
+    html += "\" maxlength='23' required>";
+    html += "<label>PIN</label>";
+    html += "<input type='text' name='p" + String(i) + "' value=\"";
+    html += htmlEscape(accounts[i].pin);
+    html += "\" maxlength='7' pattern='[0-9]*' required>";
+    html += "<div class='row'>";
+    html += "<div><label>Balance (GBP)</label>";
+    html += "<input type='number' name='b" + String(i) + "' step='0.01' min='0' value='";
+    html += poundsInput(accounts[i].balance);
+    html += "'></div>";
+    html += "<div><label>Savings Goal (GBP)</label>";
+    html += "<input type='number' name='g" + String(i) + "' step='0.01' min='0' value='";
+    html += poundsInput(accounts[i].goalTarget);
+    html += "'></div></div>";
+    html += "<label>XP</label>";
+    html += "<input type='number' name='x" + String(i) + "' step='1' min='0' value='";
+    html += String(accounts[i].xp);
+    html += "'>";
+    html += "</div>";
+  }
+
+  html += "</div><button type='submit'>Save All Accounts</button></form></body></html>";
+  return html;
+}
+
+static String buildApprovalsPage(bool acted) {
+  String html = buildPageHeader("/approvals");
+  html += buildStatusPanel();
+  if (acted) html += "<div class='ok'>&#10003; Approval queue updated</div>";
+
+  html += "<div class='scroll'>";
+  int pending = 0;
+
+  for (int i = 0; i < CHORE_COUNT; i++) {
+    if (chores[i].pendingChild < 0) continue;
+    pending++;
+
+    html += "<div class='item'>";
+    html += "<strong>" + htmlEscape(accounts[chores[i].pendingChild].name) + "</strong><br>";
+    html += htmlEscape(chores[i].title) + "<br>";
+    html += "<span class='warn'>" + modelMoneyText(chores[i].reward) + "</span>";
+    html += "<div class='actions'>";
+    html += "<form method='POST' action='/approvals/approve' style='display:inline'>";
+    html += "<input type='hidden' name='c' value='" + String(i) + "'>";
+    html += "<button type='submit' class='btn good'>Approve</button></form>";
+    html += "<form method='POST' action='/approvals/reject' style='display:inline'>";
+    html += "<input type='hidden' name='c' value='" + String(i) + "'>";
+    html += "<button type='submit' class='btn danger'>Try Again</button></form>";
+    html += "</div></div>";
+  }
+
+  if (pending == 0) {
+    html += "<div class='panel'>No chores waiting for approval.</div>";
+  }
+
+  html += "</div></body></html>";
   return html;
 }
 
@@ -151,7 +313,7 @@ static String buildWifiPage(bool saved, bool cleared) {
   char ssid[33] = {0};
   modelWifiGetCredentials(ssid, sizeof(ssid), nullptr, 0);
 
-  String html = buildPageHeader();
+  String html = buildPageHeader("/wifi");
   html += buildStatusPanel();
 
   if (saved) html += "<div class='ok'>&#10003; Home WiFi saved — reconnecting</div>";
@@ -212,14 +374,115 @@ static void setupWebRoutes() {
       }
 
       if (webServer.hasArg(rk)) {
-        float pounds = webServer.arg(rk).toFloat();
-        if (pounds >= 0.0f && pounds <= 4.50f)
-          chores[i].reward = (long)(pounds * 100.0f + 0.5f);
+        long pennies = parsePounds(webServer.arg(rk), 450L);
+        if (pennies >= 0) chores[i].reward = pennies;
       }
     }
 
     modelSaveChores();
     webServer.sendHeader("Location", "/?saved=1");
+    webServer.send(302, "text/plain", "");
+  });
+
+  webServer.on("/rewards", HTTP_GET, []() {
+    webServer.send(200, "text/html", buildRewardsPage(webServer.hasArg("saved")));
+  });
+
+  webServer.on("/rewards/update", HTTP_POST, []() {
+    for (int i = 0; i < REWARD_COUNT; i++) {
+      String nk = "n" + String(i);
+      String ck = "c" + String(i);
+
+      if (webServer.hasArg(nk)) {
+        String val = webServer.arg(nk);
+        val.trim();
+        if (val.length() > 0 && val.length() < 32) {
+          strncpy(rewards[i].title, val.c_str(), 31);
+          rewards[i].title[31] = '\0';
+        }
+      }
+
+      if (webServer.hasArg(ck)) {
+        long pennies = parsePounds(webServer.arg(ck), 99999L);
+        if (pennies >= 0) rewards[i].cost = pennies;
+      }
+    }
+
+    modelSaveRewards();
+    webServer.sendHeader("Location", "/rewards?saved=1");
+    webServer.send(302, "text/plain", "");
+  });
+
+  webServer.on("/accounts", HTTP_GET, []() {
+    webServer.send(200, "text/html", buildAccountsPage(webServer.hasArg("saved")));
+  });
+
+  webServer.on("/accounts/update", HTTP_POST, []() {
+    for (int i = 0; i < ACCOUNT_COUNT; i++) {
+      String nk = "n" + String(i);
+      String pk = "p" + String(i);
+      String bk = "b" + String(i);
+      String gk = "g" + String(i);
+      String xk = "x" + String(i);
+
+      if (webServer.hasArg(nk)) {
+        String val = webServer.arg(nk);
+        val.trim();
+        if (val.length() > 0 && val.length() < 24) {
+          strncpy(accounts[i].name, val.c_str(), 23);
+          accounts[i].name[23] = '\0';
+        }
+      }
+
+      if (webServer.hasArg(pk)) {
+        String val = webServer.arg(pk);
+        val.trim();
+        if (val.length() > 0 && val.length() < 8) {
+          strncpy(accounts[i].pin, val.c_str(), 7);
+          accounts[i].pin[7] = '\0';
+        }
+      }
+
+      if (webServer.hasArg(bk)) {
+        long pennies = parsePounds(webServer.arg(bk));
+        if (pennies >= 0) accounts[i].balance = pennies;
+      }
+
+      if (webServer.hasArg(gk)) {
+        long pennies = parsePounds(webServer.arg(gk));
+        if (pennies >= 0) accounts[i].goalTarget = pennies;
+      }
+
+      if (webServer.hasArg(xk)) {
+        long xp = webServer.arg(xk).toInt();
+        if (xp >= 0) accounts[i].xp = xp;
+      }
+
+      modelUpdateAchievements(i);
+      modelSaveAccount(i);
+    }
+
+    webServer.sendHeader("Location", "/accounts?saved=1");
+    webServer.send(302, "text/plain", "");
+  });
+
+  webServer.on("/approvals", HTTP_GET, []() {
+    webServer.send(200, "text/html", buildApprovalsPage(webServer.hasArg("acted")));
+  });
+
+  webServer.on("/approvals/approve", HTTP_POST, []() {
+    if (webServer.hasArg("c")) {
+      modelApproveChore(webServer.arg("c").toInt());
+    }
+    webServer.sendHeader("Location", "/approvals?acted=1");
+    webServer.send(302, "text/plain", "");
+  });
+
+  webServer.on("/approvals/reject", HTTP_POST, []() {
+    if (webServer.hasArg("c")) {
+      modelRejectChore(webServer.arg("c").toInt());
+    }
+    webServer.sendHeader("Location", "/approvals?acted=1");
     webServer.send(302, "text/plain", "");
   });
 
@@ -285,6 +548,8 @@ void modelSaveAccount(int i) {
   if (i < 0 || i >= ACCOUNT_COUNT) return;
   prefs.begin("bank", false);
   String k = String(i);
+  prefs.putString(("nm" + k).c_str(), accounts[i].name);
+  prefs.putString(("pn" + k).c_str(), accounts[i].pin);
   prefs.putLong(("bal" + k).c_str(), accounts[i].balance);
   prefs.putLong(("xp" + k).c_str(), accounts[i].xp);
   prefs.putBool(("fd" + k).c_str(), accounts[i].firstDeposit);
@@ -299,6 +564,10 @@ void modelLoadAccounts() {
   prefs.begin("bank", true);
   for (int i = 0; i < ACCOUNT_COUNT; i++) {
     String k = String(i);
+    String name = prefs.getString(("nm" + k).c_str(), accounts[i].name);
+    String pin = prefs.getString(("pn" + k).c_str(), accounts[i].pin);
+    name.toCharArray(accounts[i].name, sizeof(accounts[i].name));
+    pin.toCharArray(accounts[i].pin, sizeof(accounts[i].pin));
     accounts[i].balance = prefs.getLong(("bal" + k).c_str(), accounts[i].balance);
     accounts[i].xp = prefs.getLong(("xp" + k).c_str(), accounts[i].xp);
     accounts[i].firstDeposit = prefs.getBool(("fd" + k).c_str(), accounts[i].firstDeposit);
@@ -329,6 +598,27 @@ void modelLoadChores() {
     title.toCharArray(chores[i].title, sizeof(chores[i].title));
     chores[i].reward = prefs.getLong(("cr" + k).c_str(), DEFAULT_CHORE_REWARDS[i]);
     chores[i].pendingChild = prefs.getInt(("cp" + k).c_str(), -1);
+  }
+  prefs.end();
+}
+
+void modelSaveRewards() {
+  prefs.begin("bank", false);
+  for (int i = 0; i < REWARD_COUNT; i++) {
+    String k = String(i);
+    prefs.putString(("rt" + k).c_str(), rewards[i].title);
+    prefs.putLong(("rc" + k).c_str(), rewards[i].cost);
+  }
+  prefs.end();
+}
+
+void modelLoadRewards() {
+  prefs.begin("bank", true);
+  for (int i = 0; i < REWARD_COUNT; i++) {
+    String k = String(i);
+    String title = prefs.getString(("rt" + k).c_str(), DEFAULT_REWARD_TITLES[i]);
+    title.toCharArray(rewards[i].title, sizeof(rewards[i].title));
+    rewards[i].cost = prefs.getLong(("rc" + k).c_str(), DEFAULT_REWARD_COSTS[i]);
   }
   prefs.end();
 }
@@ -408,6 +698,15 @@ bool modelApproveChore(int chore) {
   modelSaveChores();
   modelAddHistory(child, "Approved: " + String(chores[chore].title) + " +" + modelMoneyText(reward));
   modelPushNotification("PAID", chores[chore].title);
+  return true;
+}
+
+bool modelRejectChore(int chore) {
+  if (chore < 0 || chore >= CHORE_COUNT) return false;
+  if (chores[chore].pendingChild < 0) return false;
+  chores[chore].pendingChild = -1;
+  modelSaveChores();
+  modelPushNotification("REJECT", chores[chore].title);
   return true;
 }
 
@@ -565,13 +864,14 @@ void modelWifiTick() {
 void modelInit() {
   modelLoadAccounts();
   modelLoadChores();
+  modelLoadRewards();
 
   setupWebRoutes();
   webServer.begin();
   s_webStarted = true;
 
-  Serial.println("[Web] Chore editor: http://192.168.4.1/");
-  Serial.println("[Web] WiFi setup:   http://192.168.4.1/wifi");
+  Serial.println("[Web] Admin panel: http://192.168.4.1/");
+  Serial.println("[Web] Chores, shop, accounts, approvals, WiFi all editable from phone");
 }
 
 void modelWebServe() {

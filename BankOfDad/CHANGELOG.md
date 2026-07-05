@@ -4,6 +4,13 @@
 
 This update moves Bank of Dad toward the full product system while keeping the functional Arduino/LVGL structure intact.
 
+## v2.2.2 — Full web editor
+
+- Device admin panel now has tabs for **Chores**, **Shop**, **Accounts**, **Approvals**, and **WiFi**.
+- All chore names/prices, shop rewards, child names/PINs/balances/goals/XP are editable from your phone.
+- Approval queue can be approved or rejected from the web UI.
+- Browser demo app adds a **Dad Editor** mode for chores, shop, and children.
+
 ## v2.2.1 — Home WiFi + OTA
 
 - Device now runs **AP + STA** together: the `BankOfDad` hotspot stays up for setup while also joining your home network.

@@ -26,7 +26,7 @@
 #define DAD_TAX_PERCENT 10
 
 #define NOTIFY_COUNT    12
-#define PLATFORM_VERSION "2.2.1"
+#define PLATFORM_VERSION "2.2.2"
 
 /** Achievement bit flags stored per account in NVS as ach{n}. */
 #define ACH_FIRST_DEPOSIT  (1UL << 0)

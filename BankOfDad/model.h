@@ -24,6 +24,11 @@ struct Chore {
   int pendingChild;
 };
 
+struct Reward {
+  char title[32];
+  long cost;
+};
+
 struct Notification {
   char tag[16];
   char message[48];
@@ -32,6 +37,7 @@ struct Notification {
 
 extern Account accounts[ACCOUNT_COUNT];
 extern Chore chores[CHORE_COUNT];
+extern Reward rewards[REWARD_COUNT];
 extern String historyLog[ACCOUNT_COUNT][HISTORY_COUNT];
 extern int historyIndex[ACCOUNT_COUNT];
 extern Notification notifications[NOTIFY_COUNT];
@@ -53,6 +59,8 @@ void modelSaveAccount(int i);
 void modelLoadAccounts();
 void modelSaveChores();
 void modelLoadChores();
+void modelSaveRewards();
+void modelLoadRewards();
 void modelAddHistory(int account, const String &entry);
 void modelUpdateAchievements(int account);
 String modelMoneyText(long pennies);
@@ -64,6 +72,7 @@ long modelDadTaxAmount(int account);
 bool modelApplyDadTax(int account);
 bool modelRequestChore(int chore, int child);
 bool modelApproveChore(int chore);
+bool modelRejectChore(int chore);
 void modelLeaderboardOrder(int *orderOut);
 void modelPushNotification(const char *tag, const char *message);
 void modelFormatNotifyFeed(char *buf, size_t len);
