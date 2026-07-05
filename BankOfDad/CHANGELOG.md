@@ -14,6 +14,8 @@ This update moves Bank of Dad toward the full product system while keeping the f
   - Port: `3232`
   - Password: `BANKOFDAD`
   - Upload via Arduino IDE → **Sketch → Upload Using OTA**
+- Entry sketch renamed to **`BankOfDadLVGL.ino`** (matches local Arduino project layout).
+- Added **`backlight.h` / `backlight.cpp`** module.
 
 ## Added / changed
 

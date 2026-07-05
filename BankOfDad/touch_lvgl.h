@@ -2,8 +2,5 @@
 
 #include <TAMC_GT911.h>
 
-enum Rotation {
-  ROTATION_RIGHT = 1,
-};
-
-void touchLvglInit(TAMC_GT911 &touch, uint16_t width, uint16_t height, Rotation rotation);
+/** Pass DISPLAY_ROTATION from lvgl_port.h */
+void touchLvglInit(TAMC_GT911 &touch, uint16_t width, uint16_t height, uint8_t displayRotation);

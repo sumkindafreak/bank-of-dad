@@ -31,6 +31,10 @@ No install step is needed yet.
 
 ### ESP32 firmware notes
 
+Open the `BankOfDad/` folder as your Arduino sketch (entry point: **`BankOfDadLVGL.ino`**).
+
+**Sync from git:** copy or pull the whole `BankOfDad/` folder into your Arduino project directory, replacing the module files there. Keep your local `lv_conf.h` if you already have one configured.
+
 - Connect to the **BankOfDad** hotspot (`pocket123`) and open `http://192.168.4.1/wifi` to save your home WiFi credentials.
 - After joining home WiFi, use the device IP from your router (shown on the screen) for phone access.
 - OTA updates: Arduino IDE → **Upload Using OTA**, hostname `BankOfDad`, password `BANKOFDAD`.

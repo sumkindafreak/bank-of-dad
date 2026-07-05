@@ -1,21 +1,28 @@
 /*
- * BANK OF DAD — LVGL 9 retro terminal
+ * BANK OF DAD v2.2.1 — LVGL 9 retro family banking terminal
  * JC8048W550C | ESP32-S3 | 800x480 RGB | GT911 | rotated 90° (480x800 UI)
+ * Modules: model, ui_lvgl, platform, touch_lvgl, lvgl_port, backlight
  *
  * Tools: ESP32S3 Dev Module | OPI PSRAM | 16MB Flash | QIO 80MHz | USB CDC On Boot
  *
- * Requires lv_conf.h in this folder.
+ * Requires lv_conf.h in this folder (copy from lvgl/lv_conf_template.h, enable #if 1)
+ *
+ * WiFi: connect to BankOfDad hotspot → http://192.168.4.1/wifi to join home network
+ * OTA:  Upload Using OTA when on home WiFi — password BANKOFDAD
  */
 
 #define LV_CONF_INCLUDE_SIMPLE
 
+#include "lv_conf.h"
 #include <Arduino_GFX_Library.h>
 #include <TAMC_GT911.h>
 #include "lvgl_port.h"
 #include "app.h"
 #include "touch_lvgl.h"
+#include "backlight.h"
 
 #define TFT_BL 2
+/* 20-line bounce buffer stops RGB DMA drift (upward flowing overlay) on ESP32-S3 */
 #define BOUNCE_BUFFER (800 * 20)
 
 TAMC_GT911 touchDev(19, 20, 18, 38, SCREEN_W, SCREEN_H);
@@ -30,18 +37,10 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     1, 16000000, false, 0, 0, BOUNCE_BUFFER);
 
 Arduino_RGB_Display *panel = new Arduino_RGB_Display(
-    800, 480, rgbpanel, DISPLAY_ROTATION, false);
+    800, 480, rgbpanel, DISPLAY_ROTATION, true /* auto_flush — cache writeback per draw */);
 
 static void backlightOn() {
-  pinMode(TFT_BL, OUTPUT);
-#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  ledcAttach(TFT_BL, 1000, 10);
-  ledcWrite(TFT_BL, 1023);
-#else
-  ledcSetup(0, 1000, 10);
-  ledcAttachPin(TFT_BL, 0);
-  ledcWrite(0, 1023);
-#endif
+  backlightInit(TFT_BL);
 }
 
 void setup() {
@@ -62,7 +61,7 @@ void setup() {
     while (1) delay(1000);
   }
 
-  touchLvglInit(touchDev, gfx->width(), gfx->height(), ROTATION_RIGHT);
+  touchLvglInit(touchDev, gfx->width(), gfx->height(), DISPLAY_ROTATION);
   Serial.printf("Display %ux%u rotation %d\n", gfx->width(), gfx->height(), DISPLAY_ROTATION);
 
   appSetup();

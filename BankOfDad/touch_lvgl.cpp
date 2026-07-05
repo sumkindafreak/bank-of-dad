@@ -5,7 +5,7 @@
 static TAMC_GT911 *s_touch = nullptr;
 static uint16_t s_w = 0;
 static uint16_t s_h = 0;
-static Rotation s_rot = ROTATION_RIGHT;
+static uint8_t s_rot = 1;
 
 static void touchReadCb(lv_indev_t *indev, lv_indev_data_t *data) {
   (void)indev;
@@ -20,7 +20,7 @@ static void touchReadCb(lv_indev_t *indev, lv_indev_data_t *data) {
   int32_t x = p.x;
   int32_t y = p.y;
 
-  if (s_rot == ROTATION_RIGHT) {
+  if (s_rot == 1) {
     int32_t tx = y;
     int32_t ty = s_w - 1 - x;
     x = tx;
@@ -37,14 +37,14 @@ static void touchReadCb(lv_indev_t *indev, lv_indev_data_t *data) {
   data->state = LV_INDEV_STATE_PRESSED;
 }
 
-void touchLvglInit(TAMC_GT911 &touch, uint16_t width, uint16_t height, Rotation rotation) {
+void touchLvglInit(TAMC_GT911 &touch, uint16_t width, uint16_t height, uint8_t displayRotation) {
   s_touch = &touch;
   s_w = width;
   s_h = height;
-  s_rot = rotation;
+  s_rot = displayRotation;
 
   touch.begin();
-  touch.setRotation(rotation);
+  touch.setRotation(displayRotation);
 
   lv_indev_t *indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
