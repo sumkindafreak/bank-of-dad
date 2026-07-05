@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#07111f"/>
+  <rect x="60" y="60" width="1080" height="510" rx="32" fill="#0d1d33" stroke="#42f58d" stroke-width="8"/>
+  <rect x="110" y="110" width="980" height="410" rx="18" fill="#101827" stroke="#f5c542" stroke-width="4"/>
+  <g transform="translate(150 150)">
+    <rect x="0" y="115" width="250" height="160" rx="26" fill="#142b45" stroke="#42f58d" stroke-width="7"/>
+    <circle cx="72" cy="195" r="34" fill="#f5c542"/>
+    <rect x="130" y="165" width="80" height="22" rx="6" fill="#42f58d"/>
+    <rect x="130" y="210" width="52" height="22" rx="6" fill="#42f58d" opacity="0.75"/>
+    <path d="M45 115 L95 55 H155 L205 115 Z" fill="#203b5d" stroke="#42f58d" stroke-width="7"/>
+  </g>
+  <text x="470" y="245" fill="#42f58d" font-family="monospace" font-size="78" font-weight="800">BANK OF DAD</text>
+  <text x="475" y="315" fill="#f5c542" font-family="monospace" font-size="34" font-weight="700">POCKET MONEY WITH PURPOSE</text>
+  <text x="475" y="375" fill="#e8f7ff" font-family="monospace" font-size="26">CHORES - XP - BADGES - REWARDS</text>
+  <rect x="475" y="415" width="470" height="60" rx="16" fill="#07111f" stroke="#42f58d" stroke-width="3"/>
+  <text x="710" y="455" fill="#42f58d" font-family="monospace" font-size="26" text-anchor="middle">EARN  SAVE  LEVEL UP</text>
+</svg>
