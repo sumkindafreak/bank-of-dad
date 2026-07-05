@@ -5,6 +5,15 @@
 #define WIFI_AP_SSID "BankOfDad"
 #define WIFI_AP_PASS "pocket123"
 
+/** Home network (STA) — saved via http://<device-ip>/wifi or AP at 192.168.4.1/wifi */
+#define WIFI_STA_CONNECT_TIMEOUT_MS 15000
+#define WIFI_STA_RETRY_MS           30000
+
+/** OTA firmware updates (Arduino IDE: Sketch → Upload Using OTA) */
+#define OTA_HOSTNAME "BankOfDad"
+#define OTA_PASSWORD "BANKOFDAD"
+#define OTA_PORT     3232
+
 #define ACCOUNT_COUNT   4
 #define HISTORY_COUNT   8
 #define CHORE_COUNT     27
@@ -17,7 +26,7 @@
 #define DAD_TAX_PERCENT 10
 
 #define NOTIFY_COUNT    12
-#define PLATFORM_VERSION "2.2.0"
+#define PLATFORM_VERSION "2.2.1"
 
 /** Achievement bit flags stored per account in NVS as ach{n}. */
 #define ACH_FIRST_DEPOSIT  (1UL << 0)

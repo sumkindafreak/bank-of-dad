@@ -11,8 +11,8 @@
 
 #include <Arduino_GFX_Library.h>
 #include <TAMC_GT911.h>
-#include "app.h"
 #include "lvgl_port.h"
+#include "app.h"
 #include "touch_lvgl.h"
 
 #define TFT_BL 2

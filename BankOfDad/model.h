@@ -71,3 +71,9 @@ int modelPendingApprovalCount();
 int modelTopSaverIndex();
 void modelFormatFamilyStats(char *buf, size_t len);
 void modelFormatAchievements(int account, char *buf, size_t len);
+
+bool modelWifiHasCredentials();
+void modelWifiGetCredentials(char *ssid, size_t ssidLen, char *pass, size_t passLen);
+bool modelWifiSetCredentials(const char *ssid, const char *pass);
+void modelWifiClearCredentials();
+void modelWifiRequestReconnect();

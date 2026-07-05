@@ -4,6 +4,17 @@
 
 This update moves Bank of Dad toward the full product system while keeping the functional Arduino/LVGL structure intact.
 
+## v2.2.1 — Home WiFi + OTA
+
+- Device now runs **AP + STA** together: the `BankOfDad` hotspot stays up for setup while also joining your home network.
+- New web page at **`/wifi`** to save home SSID and password (stored in NVS).
+- Once on home WiFi, open the panel from your phone at **`http://<home-ip>/`** permanently.
+- **Over-the-air updates** enabled when connected to home WiFi.
+  - Hostname: `BankOfDad.local`
+  - Port: `3232`
+  - Password: `BANKOFDAD`
+  - Upload via Arduino IDE → **Sketch → Upload Using OTA**
+
 ## Added / changed
 
 - Expanded UK household chore economy to 27 chores.

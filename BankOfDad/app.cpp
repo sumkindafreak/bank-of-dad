@@ -12,6 +12,7 @@ void appSetup() {
 
 void appLoop() {
   platformTick();
+  modelWifiTick();
   modelWebServe();
   uiLvglOnTick();
   lvglPortLoop();

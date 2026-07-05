@@ -27,6 +27,13 @@ No install step is needed yet.
 - `index.html` - main app layout
 - `style.css` - retro dashboard styling
 - `app.js` - child accounts, chores, approval queue, XP, badges, shop and storage logic
+- `BankOfDad/` - ESP32-S3 LVGL firmware for the JC8048W550C touchscreen
+
+### ESP32 firmware notes
+
+- Connect to the **BankOfDad** hotspot (`pocket123`) and open `http://192.168.4.1/wifi` to save your home WiFi credentials.
+- After joining home WiFi, use the device IP from your router (shown on the screen) for phone access.
+- OTA updates: Arduino IDE → **Upload Using OTA**, hostname `BankOfDad`, password `BANKOFDAD`.
 
 ## Next ideas
 
