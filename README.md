@@ -1,5 +1,7 @@
 # Bank of Dad
 
+![Bank of Dad social card](assets/bank-of-dad-social-card.png)
+
 **Bank of Dad** is a retro-style family chore economy system where children can earn pocket money, XP, levels, badges, streaks and prize-shop rewards.
 
 It is designed for parents who want to make chores, saving and rewards feel fun, fair and visible without turning pocket money into an argument.
@@ -67,6 +69,7 @@ No install step is needed yet.
 - `app.js` - child accounts, chores, approval queue, XP, badges, shop and storage logic
 - `BankOfDad/` - ESP32-S3 LVGL firmware for the JC8048W550C touchscreen
 - `docs/` - product, launch and marketing documentation
+- `assets/` - launch images and visual assets
 
 ## Documentation
 
@@ -76,6 +79,10 @@ No install step is needed yet.
 - [Press Kit](docs/PRESS_KIT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Beta Tester Guide](docs/BETA_TESTER_GUIDE.md)
+- [Feature Audit](docs/FEATURE_AUDIT.md)
+- [Hardware Terminal Ideas](docs/HARDWARE_TERMINAL_IDEAS.md)
+- [Brand Notes](docs/BRAND_NOTES.md)
+- [Asset Guide](assets/README.md)
 
 ## ESP32 firmware notes
 
