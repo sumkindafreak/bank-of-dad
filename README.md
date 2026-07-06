@@ -1,6 +1,32 @@
 # Bank of Dad
 
-A retro-style family chore economy system where children can earn pocket money, XP, levels, badges, streaks and prize-shop rewards.
+**Bank of Dad** is a retro-style family chore economy system where children can earn pocket money, XP, levels, badges, streaks and prize-shop rewards.
+
+It is designed for parents who want to make chores, saving and rewards feel fun, fair and visible without turning pocket money into an argument.
+
+> **Where chores become achievements, and savings become adventures.**
+
+## What it does
+
+Bank of Dad gives families a simple reward system built around earning, saving and approval.
+
+Children can:
+
+- View available chores
+- Complete tasks for rewards
+- Build XP, levels and streaks
+- Unlock badges
+- Save towards prize-shop rewards
+- Learn basic budgeting and delayed gratification
+
+Parents can:
+
+- Approve completed chores before money is awarded
+- Control chore values
+- Manage child accounts
+- Create reward-shop goals
+- Encourage kindness, consistency and no-reminder bonuses
+- Keep the whole system local and family-controlled
 
 ## Current features
 
@@ -16,6 +42,17 @@ A retro-style family chore economy system where children can earn pocket money, 
 - Dad Editor mode for chores, shop prices, and child accounts
 - Local browser storage using `localStorage`
 - Retro arcade / 80s computer styling
+- ESP32-S3 LVGL touchscreen firmware for a physical Bank of Dad terminal
+
+## Who it is for
+
+Bank of Dad is for:
+
+- Parents who want a fun way to manage chores and pocket money
+- Children who respond well to goals, levels and visible progress
+- Families who want to encourage saving rather than instant spending
+- Makers who like the idea of a physical home banking terminal for children
+- Anyone who wants a lightweight, local-first alternative to complicated reward apps
 
 ## How to run
 
@@ -29,8 +66,18 @@ No install step is needed yet.
 - `style.css` - retro dashboard styling
 - `app.js` - child accounts, chores, approval queue, XP, badges, shop and storage logic
 - `BankOfDad/` - ESP32-S3 LVGL firmware for the JC8048W550C touchscreen
+- `docs/` - product, launch and marketing documentation
 
-### ESP32 firmware notes
+## Documentation
+
+- [Product Overview](docs/PRODUCT_OVERVIEW.md)
+- [Launch Plan](docs/LAUNCH_PLAN.md)
+- [Marketing Copy](docs/MARKETING_COPY.md)
+- [Press Kit](docs/PRESS_KIT.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Beta Tester Guide](docs/BETA_TESTER_GUIDE.md)
+
+## ESP32 firmware notes
 
 Open the `BankOfDad/` folder as your Arduino sketch (entry point: **`BankOfDadLVGL.ino`**).
 
@@ -40,7 +87,11 @@ Open the `BankOfDad/` folder as your Arduino sketch (entry point: **`BankOfDadLV
 - After joining home WiFi, use the device IP from your router (shown on the screen) for phone access.
 - OTA updates: Arduino IDE → **Upload Using OTA**, hostname `BankOfDad`, password `BANKOFDAD`.
 
-## Next ideas
+## Product direction
+
+Bank of Dad is currently a local-first family reward system. The next phase is to polish the product, test it with real families, collect feedback and prepare a public launch.
+
+Planned future ideas include:
 
 - Parent PIN login
 - Child PIN login
@@ -50,3 +101,17 @@ Open the `BankOfDad/` folder as your Arduino sketch (entry point: **`BankOfDadLV
 - Export / backup data
 - Firebase sync
 - PWA install mode
+- Public landing page
+- Beta tester feedback loop
+- Optional physical touchscreen terminal build guide
+
+## Tagline options
+
+- Where chores become achievements, and savings become adventures.
+- Teach. Earn. Save. Reward.
+- Pocket money with purpose.
+- A family bank for chores, goals and rewards.
+
+## Status
+
+Bank of Dad is in active development and preparing for beta testing.
