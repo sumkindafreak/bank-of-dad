@@ -73,6 +73,7 @@ No install step is needed yet.
 
 ## Documentation
 
+- [Documentation Index](docs/README_INDEX.md)
 - [Product Overview](docs/PRODUCT_OVERVIEW.md)
 - [Launch Plan](docs/LAUNCH_PLAN.md)
 - [Marketing Copy](docs/MARKETING_COPY.md)
